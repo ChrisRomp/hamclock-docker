@@ -16,8 +16,8 @@ on:
     tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ "main" ]
-    paths:
-      - "./Dockerfile"
+    # paths:
+    #   - "./Dockerfile"
   workflow_dispatch:
 
 env:
