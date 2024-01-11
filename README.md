@@ -18,9 +18,7 @@ Thanks also to Julius Zeidler [@zeidos](https://github.com/zeidlos) for [his wor
 
 ## Prerequisites
 
-You will need to have a computer running [Docker](https://docs.docker.com/get-docker/).
-
-**NOTE:** Support for Raspsberry Pi is not yet working but [in progress](https://github.com/ChrisRomp/hamclock-docker/issues/5).
+You will need to have a computer running [Docker](https://docs.docker.com/get-docker/). Once installed, you can verify it's running with `docker run --rm hello-world` ([docs](https://hub.docker.com/_/hello-world)).
 
 If you're already lost, may I recommend buying a [prebulit HamClock](https://www.veritiumhfclock.com/)?
 
@@ -31,6 +29,16 @@ You can run this app by either by pulling the container from the prebuilt contai
 ### Running from the Image
 
 To run containers with Docker you can use the command line `docker run` argument, or use Docker Compose. I find for most users the Docker Compose option is easiest, as it encapuslates all of the arguments in one place in a nice, repeatable manner. This is also the version that some NAS devices expect, like QNAP.
+
+To run:
+
+1. Install [Prerequisites](#prerequisites).
+1. (Optional) Create a directory somewhere called hamclock or hamclock-docker.
+1. Download [examples/docker-compose.yaml](https://raw.githubusercontent.com/ChrisRomp/hamclock-docker/main/examples/docker-compose.yaml) and save to that folder.
+1. Run `docker-compose up -d` from inside of the folder where `docker-compose.yaml` lives.
+1. If you didn't receive any errors, see [Accessing HamClock](#accessing-hamclock) below for next steps.
+
+Or you can paste this YAML into a `docker-compose.yaml` file yourself:
 
 ```yaml
 version: "3"
@@ -74,10 +82,10 @@ docker run --detach -p 8080:8080 -p 8081:8081 --name hamclock -v hamclock:/root/
 
 You can clone or download the source code to this repository, or just copy/paste the contents of the `Dockerfile` into a text file on your local machine called `Dockerfile`.
 
-Then you can copy the contents from `docker-compose-source.yaml` into a file called `docker-compose.yaml` in the same directory as your `Dockerfile`.
+Here is a `docker-compose.yaml` file ready to go:
 
 ```yaml
-version: "3.8"
+version: "3"
 services:
   web:
     build:
