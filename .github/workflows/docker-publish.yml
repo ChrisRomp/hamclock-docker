@@ -9,14 +9,16 @@ on:
   # schedule:
   #   - cron: '22 23 * * *'
   push:
-    paths-ignore:
-      - '**/*.md'
+    paths:
+      - 'Dockerfile'
+      - '!examples/**'
     branches: [ "main" ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
   pull_request:
-    paths-ignore:
-      - '**/*.md'
+    paths:
+      - 'Dockerfile'
+      - '!examples/**'
     branches: [ "main" ]
   workflow_dispatch:
 

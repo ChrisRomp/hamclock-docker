@@ -2,7 +2,11 @@
 
 A Dockerized build of [HamClock](https://www.clearskyinstitute.com/ham/HamClock/) by Elwood Downey, WB0OEW.
 
+![HamClock Screenshot](images/hamclock.png)
+
 Thanks also to Julius Zeidler [@zeidos](https://github.com/zeidlos) for [his work](https://github.com/zeidlos/hamclock-docker) on a Dockerized version of HamClock. I wanted to take some different approaches, so this is my take on it, but I ran HamClock initially from his image and I thank him for his work.
+
+[![Docker Build](https://github.com/ChrisRomp/hamclock-docker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ChrisRomp/hamclock-docker/actions/workflows/docker-publish.yml)
 
 # Contents
 - [Prerequisites](#prerequisites)
@@ -19,6 +23,15 @@ Thanks also to Julius Zeidler [@zeidos](https://github.com/zeidlos) for [his wor
 ## Prerequisites
 
 You will need to have a computer running [Docker](https://docs.docker.com/get-docker/). Once installed, you can verify it's running with `docker run --rm hello-world` ([docs](https://hub.docker.com/_/hello-world)).
+
+This application will work in Docker running on:
+
+- ✅ Linux x86/64
+- ✅ Windows 10/11 (with [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install))
+- ✅ Raspberry Pi (confirmed on Pi 3b+ running Raspbian 11)
+- ❓ Mac OS *should* work but I don't have one to test.
+
+If you run into problems getting it to run, please log an [issue](https://github.com/ChrisRomp/hamclock-docker/issues). Please be detailed about your platform and any errors!
 
 If you're already lost, may I recommend buying a [prebulit HamClock](https://www.veritiumhfclock.com/)?
 
@@ -127,3 +140,7 @@ Please refer to the [HamClock User Guide](https://www.clearskyinstitute.com/ham/
 You should be able to update HamClock in place through the web UI. It will prompt you when there's an update available, and you can apply it.
 
 I may occasionally build updated images here, but that will not be the primary way to keep your application up to date.
+
+## Support
+
+This application is provided with no guarantees it will work for anything. But if you're having problems, please open a [new issue](https://github.com/ChrisRomp/hamclock-docker/issues) and I will try and provide some advice or a fix as my time allows.
