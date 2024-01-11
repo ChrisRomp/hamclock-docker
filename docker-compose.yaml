@@ -1,7 +1,12 @@
-version: "3.8"
+version: "3"
 services:
   web:
-    image: ghcr.io/chrisromp/hamclock-docker:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # HamClock supported resolutions are 800x480, 1600x960, 2400x1440 and 3200x1920 as of v3.02
+        HAMCLOCK_RESOLUTION: 1600x960
     ports:
       - "8080:8080/tcp"
       - "8081:8081/tcp"

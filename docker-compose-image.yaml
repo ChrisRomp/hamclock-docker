@@ -1,0 +1,13 @@
+version: "3"
+services:
+  web:
+    image: ghcr.io/chrisromp/hamclock-docker:latest
+    ports:
+      - "8080:8080/tcp"
+      - "8081:8081/tcp"
+    volumes:
+      - data:/root/.hamclock
+    restart: unless-stopped
+
+volumes:
+  data:
