@@ -20,6 +20,8 @@ Thanks also to Julius Zeidler [@zeidos](https://github.com/zeidlos) for [his wor
 
 You will need to have a computer running [Docker](https://docs.docker.com/get-docker/).
 
+**NOTE:** Support for Raspsberry Pi is not yet working but [in progress](https://github.com/ChrisRomp/hamclock-docker/issues/5).
+
 If you're already lost, may I recommend buying a [prebulit HamClock](https://www.veritiumhfclock.com/)?
 
 ## Running HamClock
