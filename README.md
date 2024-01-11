@@ -2,7 +2,7 @@
 
 A Dockerized build of [HamClock](https://www.clearskyinstitute.com/ham/HamClock/) by Elwood Downey, WB0OEW.
 
-Thanks also to @zeidos for [thier work](https://github.com/zeidlos/hamclock-docker) on a Dockerized version of HamClock. I wanted to take some different approaches, so this is my take on it, but I ran HamClock initially from their image and I thank them for their work.
+Thanks also to Julius Zeidler [@zeidos](https://github.com/zeidlos) for [his work](https://github.com/zeidlos/hamclock-docker) on a Dockerized version of HamClock. I wanted to take some different approaches, so this is my take on it, but I ran HamClock initially from his image and I thank him for his work.
 
 # Contents
 - [Prerequisites](#prerequisites)
@@ -20,7 +20,7 @@ Thanks also to @zeidos for [thier work](https://github.com/zeidlos/hamclock-dock
 
 You will need to have a computer running [Docker](https://docs.docker.com/get-docker/).
 
-If you're already lost, may I recommend buying a [prebulid HamClock](https://www.veritiumhfclock.com/)?
+If you're already lost, may I recommend buying a [prebulit HamClock](https://www.veritiumhfclock.com/)?
 
 ## Running HamClock
 
@@ -31,7 +31,7 @@ You can run this app by either by pulling the container from the prebuilt contai
 To run containers with Docker you can use the command line `docker run` argument, or use Docker Compose. I find for most users the Docker Compose option is easiest, as it encapuslates all of the arguments in one place in a nice, repeatable manner. This is also the version that some NAS devices expect, like QNAP.
 
 ```yaml
-version: "3.8"
+version: "3"
 services:
   web:
     image: ghcr.io/chrisromp/hamclock-docker:latest
