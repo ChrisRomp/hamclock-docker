@@ -34,7 +34,7 @@ To run containers with Docker you can use the command line `docker run` argument
 version: "3.8"
 services:
   web:
-    image: ghcr.io/chrisromp/hamclock-docker:main
+    image: ghcr.io/chrisromp/hamclock-docker:latest
     ports:
       - "8080:8080/tcp"
       - "8081:8081/tcp"
@@ -65,7 +65,7 @@ docker volume create hamclock
 Then pass the appropriate arguments to run the container:
 
 ```sh
-docker run --detach -p 8080:8080 -p 8081:8081 --name hamclock -v hamclock:/root/.hamclock ghcr.io/chrisromp/hamclock-docker:main
+docker run --detach -p 8080:8080 -p 8081:8081 --name hamclock -v hamclock:/root/.hamclock ghcr.io/chrisromp/hamclock-docker:latest
 ```
 
 ### Building from Source
