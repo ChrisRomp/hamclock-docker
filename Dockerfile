@@ -3,6 +3,7 @@ FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.authors="Chris Romp NZ6F"
 LABEL org.opencontainers.image.description="HamClock by WBØOEW in a Docker container"
+LABEL org.opencontainers.image.source="https://github.com/ChrisRomp/hamclock-docker"
 
 # HamClock supported resolutions are 800x480, 1600x960, 2400x1440 and 3200x1920 as of v3.02
 ARG HAMCLOCK_RESOLUTION=1600x960
