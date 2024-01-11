@@ -56,7 +56,8 @@ volumes:
   data:
 ```
 
-> **NOTE:** If your Docker host computer is already hosting an application which is using TCP ports `8080` (used by HamClock's API) or `8081` (used by the HamClock web UI), then you can modify them in the `Dockerfile` using the syntax `HOST:CONTAINER`.
+> [!NOTE]
+> If your Docker host computer is already hosting an application which is using TCP ports `8080` (used by HamClock's API) or `8081` (used by the HamClock web UI), then you can modify them in the `Dockerfile` using the syntax `HOST:CONTAINER`.
 >
 > For example, to change the web UI from port `8081` to port `80`, you would change the `8081:8081/tcp` port to `80:8081/tcp`.
 >
