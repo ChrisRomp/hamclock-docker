@@ -21,9 +21,6 @@ RUN curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip && \
     unzip ESPHamClock.zip
 WORKDIR /hamclock/ESPHamClock
 
-# We need to do a little source hacking to cast t_time to a long for the ARM/v7 build to work. I expect to remove this in the near future (already reported to dev).
-RUN sed -i '/^    time_t upsecs = getUptime (&days, &hrs, &mins, &secs);$/c\    long upsecs = (long) getUptime (&days, &hrs, &mins, &secs);' ESPHamClock.ino
-
 # Let's build it
 RUN make -j 4 hamclock-web-${HAMCLOCK_RESOLUTION}
 RUN make install
