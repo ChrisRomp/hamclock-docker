@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=alpine:3.19
+ARG BASE_IMAGE=debian:bookworm-slim
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.authors="Chris Romp NZ6F"
@@ -9,8 +9,8 @@ LABEL org.opencontainers.image.source="https://github.com/ChrisRomp/hamclock-doc
 ARG HAMCLOCK_RESOLUTION=1600x960
 
 # Install updates and required packages
-RUN apk update && apk upgrade
-RUN apk add curl make g++ libx11-dev perl
+RUN apt-get update && apt-get upgrade -y
+RUN apt-get install -y curl make g++ libx11-dev perl unzip
 
 RUN mkdir /hamclock
 WORKDIR /hamclock
