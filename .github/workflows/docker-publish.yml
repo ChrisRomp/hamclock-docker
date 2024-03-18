@@ -14,7 +14,7 @@ on:
       - '!examples/**'
     branches: [ "main" ]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: [ 'v*.*', 'v*.*.*' ]
   pull_request:
     paths:
       - 'Dockerfile'
