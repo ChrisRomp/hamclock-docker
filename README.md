@@ -133,7 +133,12 @@ Open a web browser to: `http://dockerhost:8081/live.html`
 
 Likely you will see HamClock running but without your call sign, or if you were fast enough you may see it prompting for setup. If not, leave this browser window open and open another tab/window and enter: `http://dockerhost:8080/restart`. Switch back to the first tab and you should see HamClock prompting you to enter setup. Click your mouse anywhere and configure HamClock.
 
-Please refer to the [HamClock User Guide](https://www.clearskyinstitute.com/ham/HamClock/HamClockKey.pdf) for detailed instructions.
+### HamClock Setup
+
+Please refer to the [HamClock User Guide](https://www.clearskyinstitute.com/ham/HamClock/HamClockKey.pdf) for detailed instructions, but here are a couple of settings I want to highlight:
+
+- **WiFi:** No need to set this up; HamClock on Docker will use your Docker network to connect to the internet.
+- **NTP:** If you want to skip the NTP (time server) latency/ping test on HamClock startup, you can set the NTP server to `OS` and HamClock will pull the time from your Docker host system.
 
 ## Updating HamClock
 
