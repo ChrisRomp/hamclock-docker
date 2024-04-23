@@ -26,7 +26,7 @@ jobs:
         set -e
         echo "Getting version from $VERSION_CHECK_URL"
         REMOTE_VERSION=$(curl -s "$VERSION_CHECK_URL" | head -n 1)
-        echo "Got version: $REMOTE_VERSION" >> $GITHUB_STEP_SUMMARY
+        echo "Remote version: $REMOTE_VERSION" >> $GITHUB_STEP_SUMMARY
         echo "remote_version=$REMOTE_VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Get current release version
@@ -39,7 +39,7 @@ jobs:
         URL="https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest"
         echo "Getting version from $URL"
         CURRENT_VERSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "$URL" | jq -r '.tag_name' | sed 's/^v//')
-        echo "Got version: $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
+        echo "Current version: $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
         echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Compare versions
