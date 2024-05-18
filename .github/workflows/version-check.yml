@@ -2,7 +2,7 @@ name: Check for Updates
 
 on:
   schedule:
-  - cron: "37 */2 * * *"
+  - cron: "37 */6 * * *"
   workflow_dispatch:
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
       run: |
         set -e
         echo "Getting version from $VERSION_CHECK_URL"
-        REMOTE_VERSION=$(curl -s "$VERSION_CHECK_URL" | head -n 1)
+        REMOTE_VERSION=$(curl -s -m 10 "$VERSION_CHECK_URL" | head -n 1)
         echo "Remote version: $REMOTE_VERSION" >> $GITHUB_STEP_SUMMARY
         echo "remote_version=$REMOTE_VERSION" >> "$GITHUB_OUTPUT"
 
@@ -38,7 +38,7 @@ jobs:
         set -e
         URL="https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest"
         echo "Getting version from $URL"
-        CURRENT_VERSION=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "$URL" | jq -r '.tag_name' | sed 's/^v//')
+        CURRENT_VERSION=$(curl -s -m 10 -H "Authorization: token $GITHUB_TOKEN" "$URL" | jq -r '.tag_name' | sed 's/^v//')
         echo "Current version: $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
         echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
 
