@@ -29,7 +29,7 @@ This application will work in Docker running on:
 - ✅ Linux x86/64
 - ✅ Windows 10/11 (with [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install))
 - ✅ Raspberry Pi (confirmed on Pi 3b+ running Raspbian 11)
-- ❓ Mac OS *should* work but I don't have one to test.
+- ✅ Mac OS (confirmed on M3 running MacOS 15.1 Sequoia)
 
 If you run into problems getting it to run, please log an [issue](https://github.com/ChrisRomp/hamclock-docker/issues). Please be detailed about your platform and any errors!
 
