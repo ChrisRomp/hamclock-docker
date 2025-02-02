@@ -41,8 +41,7 @@ jobs:
         uses: docker/build-push-action@v6.13.0
         with:
           context: .
-          build-args:
-            - DEBUG_BUILD: "true"
+          build-args: DEBUG_BUILD="true"
           platforms: linux/arm64
           push: false
           cache-from: type=gha
