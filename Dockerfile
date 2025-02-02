@@ -24,7 +24,7 @@ WORKDIR /hamclock/ESPHamClock
 # TESTING change optimization level to -O2
 RUN chmod 664 Makefile
 RUN ls -alh Makefile
-RUN sed -i '' 's/-O3/-O2/g' Makefile
+RUN sed -i 's/-O3/-O2/g' Makefile
 
 # Let's build it
 RUN make -j 4 hamclock-web-${HAMCLOCK_RESOLUTION}
