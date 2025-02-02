@@ -21,7 +21,8 @@ RUN curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip && \
     unzip ESPHamClock.zip
 WORKDIR /hamclock/ESPHamClock
 
-# TESTING change optimization level to -O2
+# Change optimization level to -O2
+# Fixes build failure on ARM64
 RUN chmod 664 Makefile
 RUN ls -alh Makefile
 RUN sed -i 's/-O3/-O2/g' Makefile
