@@ -21,8 +21,15 @@ RUN curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip && \
     unzip ESPHamClock.zip
 WORKDIR /hamclock/ESPHamClock
 
+# Enable debug builds
+ARG DEBUG=false
+
 # Let's build it
-RUN make -j 4 hamclock-web-${HAMCLOCK_RESOLUTION}
+RUN if [ "$DEBUG" = "true" ]; then \
+        make -j 4 CFLAGS="-Wall" hamclock-web-${HAMCLOCK_RESOLUTION}; \
+    else \
+        make -j 4 hamclock-web-${HAMCLOCK_RESOLUTION}; \
+    fi
 RUN make install
 
 USER root
