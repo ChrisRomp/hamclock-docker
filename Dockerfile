@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=alpine:3.19
+ARG BASE_IMAGE=alpine:3.21
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.authors="Chris Romp NZ6F"
@@ -22,10 +22,10 @@ RUN curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip && \
 WORKDIR /hamclock/ESPHamClock
 
 # Enable debug builds
-ARG DEBUG=false
+ARG DEBUG_BUILD=false
 
 # Let's build it
-RUN if [ "$DEBUG" = "true" ]; then \
+RUN if [ "$DEBUG_BUILD" = "true" ]; then \
         make -j 4 CFLAGS="-Wall" hamclock-web-${HAMCLOCK_RESOLUTION}; \
     else \
         make -j 4 hamclock-web-${HAMCLOCK_RESOLUTION}; \

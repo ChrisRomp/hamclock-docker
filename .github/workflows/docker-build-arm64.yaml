@@ -42,7 +42,7 @@ jobs:
         with:
           context: .
           build-args:
-            - DEBUG: "true"
+            - DEBUG_BUILD: "true"
           platforms: linux/arm64
           push: false
           cache-from: type=gha
