@@ -21,6 +21,9 @@ RUN curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip && \
     unzip ESPHamClock.zip
 WORKDIR /hamclock/ESPHamClock
 
+# TESTING change optimization level to -O2
+RUN sed -i '' 's/-O3/-O2/g' /hamclock/ESPHamClock/Makefile
+
 # Let's build it
 RUN make -j 4 hamclock-web-${HAMCLOCK_RESOLUTION}
 RUN make install
