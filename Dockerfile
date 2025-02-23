@@ -10,7 +10,7 @@ ARG HAMCLOCK_RESOLUTION=1600x960
 
 # Install updates and required packages
 RUN apk update && apk upgrade
-RUN apk add curl make g++ libx11-dev perl
+RUN apk add curl make g++ libx11-dev perl linux-headers
 
 RUN mkdir /hamclock
 WORKDIR /hamclock
