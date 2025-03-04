@@ -6,9 +6,6 @@ name: Docker Build Arm64
 # documentation.
 
 on:
-  push:
-    paths:
-      - '.github/workflows/docker-build-arm64.yaml'
   workflow_dispatch:
 
 env:

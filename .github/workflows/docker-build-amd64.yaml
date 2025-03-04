@@ -6,9 +6,6 @@ name: Docker Build AMD64
 # documentation.
 
 on:
-  push:
-    paths:
-      - '.github/workflows/docker-build-amd64.yaml'
   workflow_dispatch:
 
 env:

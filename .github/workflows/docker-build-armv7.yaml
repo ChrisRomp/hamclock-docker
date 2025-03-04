@@ -6,9 +6,6 @@ name: Docker Build ARMv7
 # documentation.
 
 on:
-  push:
-    paths:
-      - '.github/workflows/docker-build-armv7.yaml'
   workflow_dispatch:
 
 env:
