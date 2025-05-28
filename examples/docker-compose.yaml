@@ -1,10 +1,11 @@
-version: "3"
 services:
   web:
     image: ghcr.io/chrisromp/hamclock-docker:latest
     ports:
       - "8080:8080/tcp"
       - "8081:8081/tcp"
+      # Uncomment below if you want to expose the read-only web interface on port 8082
+      #- "8082:8082/tcp" 
     volumes:
       - data:/root/.hamclock
     restart: unless-stopped
