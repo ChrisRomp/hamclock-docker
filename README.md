@@ -54,7 +54,6 @@ To run:
 Or you can paste this YAML into a `docker-compose.yaml` file yourself:
 
 ```yaml
-version: "3"
 services:
   web:
     image: ghcr.io/chrisromp/hamclock-docker:latest
