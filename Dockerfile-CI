@@ -15,9 +15,10 @@ RUN apk add curl make g++ libx11-dev perl linux-headers
 RUN mkdir /hamclock
 WORKDIR /hamclock
 
-# Download HamClock source
+# COPY HamClock source from artifact downloaded by CI
+COPY ESPHamClock.zip /hamclock/
+
 # Sort-of following Desktop build steps from https://www.clearskyinstitute.com/ham/HamClock/
-RUN curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
 RUN unzip ESPHamClock.zip
 WORKDIR /hamclock/ESPHamClock
 
