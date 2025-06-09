@@ -36,6 +36,9 @@ jobs:
       contents: read
 
     steps:
+      - name: Check IP
+        run : curl https://icanhazip.com && curl https://ipv4.icanhazip.com
+
       - name: Download from HamClock
         run: curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
 
