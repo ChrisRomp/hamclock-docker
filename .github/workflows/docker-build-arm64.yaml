@@ -55,5 +55,6 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: ghcr.io/chrisromp/hamclock-docker:test-arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          no-cache: true
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
