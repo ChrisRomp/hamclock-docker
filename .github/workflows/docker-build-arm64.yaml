@@ -25,6 +25,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
+      # Set up QEMU for cross-platform builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       # Set up BuildKit Docker container builder to be able to build
       # multi-platform images and export cache
@@ -53,4 +57,3 @@ jobs:
           tags: ghcr.io/chrisromp/hamclock-docker:test-arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
- 
