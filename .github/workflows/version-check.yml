@@ -16,7 +16,9 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4    - name: Get remote version
+      uses: actions/checkout@v4
+
+    - name: Get remote version
       id: get_remote_version
       env:
         VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL }}
@@ -56,6 +58,7 @@ jobs:
             echo "Creating release... :rocket:" >> $GITHUB_STEP_SUMMARY
             echo "update_required=true" >> "$GITHUB_OUTPUT"
         fi
+
   new-release:
     name: Create New Release
     runs-on: ubuntu-latest
@@ -67,6 +70,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Check IP
+      run: curl https://icanhazip.com && curl https://ipv4.icanhazip.com
 
     - name: Get Release Notes
       env:
