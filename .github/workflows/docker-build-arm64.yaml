@@ -7,9 +7,9 @@ name: Docker Build Arm64
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - .github/workflows/docker-build-arm64.yaml
+  # pull_request:
+  #   paths:
+  #     - .github/workflows/docker-build-arm64.yaml
 
 env:
   # Use docker.io for Docker Hub if empty
