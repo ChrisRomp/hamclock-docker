@@ -29,7 +29,15 @@ RUN ls -alh Makefile
 
 # Build for the target architecture with conservative flags to avoid illegal instruction errors
 # Remove -march=native and add conservative flags for QEMU compatibility
-ARG TARGETARCH=amd64
+# Use Docker's automatic platform arguments
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+ARG TARGETVARIANT
+
+# Debug: show what platform we're building for
+RUN echo "Building for platform: $TARGETPLATFORM"
+RUN echo "Target OS: $TARGETOS, Target Arch: $TARGETARCH, Target Variant: $TARGETVARIANT"
 RUN sed -i 's/-march=native//g' Makefile && \
     sed -i 's/-O3/-O2/g' Makefile && \
     echo "Patching brightness.cpp to avoid system calls in _WEB_ONLY builds..." && \
