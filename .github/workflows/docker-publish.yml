@@ -10,14 +10,14 @@ on:
   #   - cron: '22 23 * * *'
   push:
     paths:
-      - 'Dockerfile'
+      - 'Dockerfile-CI'
       - '!examples/**'
     branches: [ "main" ]
     # Publish semver tags as releases.
     tags: [ 'v*.*', 'v*.*.*' ]
   pull_request:
     paths:
-      - 'Dockerfile'
+      - 'Dockerfile-CI'
       - '!examples/**'
     branches: [ "main" ]
   workflow_dispatch:
@@ -29,32 +29,56 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # download:
-  #   name: Download Source
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     contents: read
+  download:
+    name: Download Source
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
-  #   steps:
-  #     - name: Check IP
-  #       run : curl https://icanhazip.com && curl https://ipv4.icanhazip.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  #     - name: Download from HamClock
-  #       run: curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+      - name: Check IP
+        run : curl https://icanhazip.com && curl https://ipv4.icanhazip.com
 
-  #     - name: Cache ESPHamClock.zip
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: ESPHamClock.zip
-  #         path: ESPHamClock.zip
-  #         if-no-files-found: error
-  #         retention-days: 7
-  #         overwrite: true
+      - name: Download from GitHub Release (if tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # Try to download from GitHub release first
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Attempting to download ESPHamClock.zip from release ${TAG_NAME}"
+          
+          # Use GitHub CLI to download the release asset
+          if gh release download "${TAG_NAME}" --pattern "ESPHamClock.zip" --repo "${{ github.repository }}" 2>/dev/null; then
+            echo "Successfully downloaded ESPHamClock.zip from release"
+            echo "DOWNLOAD_SUCCESS=true" >> $GITHUB_ENV
+          else
+            echo "Failed to download from release, will use fallback method"
+            echo "DOWNLOAD_SUCCESS=false" >> $GITHUB_ENV
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download from HamClock (fallback or non-tag)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') || env.DOWNLOAD_SUCCESS == 'false' }}
+        run: |
+          chmod +x scripts/retry_clearskyinstitute.sh
+          ./scripts/retry_clearskyinstitute.sh download https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+
+      - name: Cache ESPHamClock.zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ESPHamClock.zip
+          path: ESPHamClock.zip
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
 
   build:
     name: Build and push Docker image
     runs-on: ubuntu-latest
-    # needs: download
+    needs: download
     permissions:
       contents: read
       packages: write
@@ -100,11 +124,11 @@ jobs:
           flavor: |
             latest=auto
       
-      # # Download the ESPHamClock.zip artifact
-      # - name: Download ESPHamClock.zip artifact
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: ESPHamClock.zip
+      # Download the ESPHamClock.zip artifact
+      - name: Download ESPHamClock.zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ESPHamClock.zip
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
@@ -113,7 +137,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          # file: Dockerfile-CI
+          file: Dockerfile-CI
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

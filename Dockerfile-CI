@@ -22,14 +22,12 @@ COPY ESPHamClock.zip /hamclock/
 RUN unzip ESPHamClock.zip
 WORKDIR /hamclock/ESPHamClock
 
-# Change optimization level to -O2
-# Fixes build failure on ARM64
 RUN chmod 664 Makefile
 RUN ls -alh Makefile
-RUN sed -i 's/-O3/-O2/g' Makefile
 
-# Let's build it
-RUN make -j 4 hamclock-web-${HAMCLOCK_RESOLUTION}
+# Remove -march=native which causes issues with cross-compilation
+RUN sed -i 's/-march=native//g' Makefile
+RUN make -j4 hamclock-web-${HAMCLOCK_RESOLUTION}
 RUN make install
 
 USER root

@@ -25,7 +25,7 @@ jobs:
       run: |
         set -e
         echo "Getting version from $VERSION_CHECK_URL"
-        REMOTE_VERSION=$(curl -s -m 10 "$VERSION_CHECK_URL" | head -n 1)
+        REMOTE_VERSION=$(./scripts/retry_clearskyinstitute.sh get_version "$VERSION_CHECK_URL")
         echo "Remote version: $REMOTE_VERSION" >> $GITHUB_STEP_SUMMARY
         echo "remote_version=$REMOTE_VERSION" >> "$GITHUB_OUTPUT"
 
@@ -68,13 +68,25 @@ jobs:
         contents: write
 
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Check IP
+      run: curl https://icanhazip.com && curl https://ipv4.icanhazip.com
+
     - name: Get Release Notes
       env:
         VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL }}
       run: |
         set -e
+        chmod +x ./scripts/retry_clearskyinstitute.sh
         echo "Getting release notes from $VERSION_CHECK_URL"
-        curl -s "$VERSION_CHECK_URL" > ./release_notes.txt
+        ./scripts/retry_clearskyinstitute.sh get_content "$VERSION_CHECK_URL" ./release_notes.txt
+
+    - name: Download HamClock
+      run: |
+        set -e
+        ./scripts/retry_clearskyinstitute.sh download "https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip"
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
@@ -87,3 +99,4 @@ jobs:
           generate_release_notes: true
           append_body: true
           make_latest: true
+          files: ./ESPHamClock.zip
