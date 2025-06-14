@@ -26,10 +26,27 @@ WORKDIR /hamclock/ESPHamClock
 # Fixes build failure on ARM64
 RUN chmod 664 Makefile
 RUN ls -alh Makefile
-RUN sed -i 's/-O3/-O2/g' Makefile
 
-# Let's build it
-RUN make -j 4 hamclock-web-${HAMCLOCK_RESOLUTION}
+# Build for the target architecture with conservative flags to avoid illegal instruction errors
+# Remove -march=native and add conservative flags for QEMU compatibility
+ARG TARGETARCH=amd64
+RUN sed -i 's/-march=native//g' Makefile && \
+    sed -i 's/-O3/-O2/g' Makefile && \
+    case "$TARGETARCH" in \
+        "arm64") \
+            # Use conservative ARM64 flags that work with QEMU and real hardware
+            echo "Building for ARM64 with conservative flags" && \
+            sed -i 's/std=c++17/std=c++17 -fno-aggressive-loop-optimizations -fno-tree-vectorize/' Makefile ;; \
+        "arm") \
+            # Use conservative ARMv7 flags - disable advanced features that may not be available
+            echo "Building for ARMv7 with conservative flags" && \
+            sed -i 's/std=c++17/std=c++17 -fno-aggressive-loop-optimizations -fno-tree-vectorize -mno-unaligned-access/' Makefile ;; \
+        *) \
+            # For x64/amd64, use the original working approach - no extra flags
+            echo "Building for x64/amd64 with standard flags" ;; \
+    esac && \
+    echo "Building for TARGETARCH: $TARGETARCH" && \
+    make -j4 hamclock-web-${HAMCLOCK_RESOLUTION}
 RUN make install
 
 USER root
