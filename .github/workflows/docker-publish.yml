@@ -36,11 +36,35 @@ jobs:
       contents: read
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Check IP
         run : curl https://icanhazip.com && curl https://ipv4.icanhazip.com
 
-      - name: Download from HamClock
-        run: curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+      - name: Download from GitHub Release (if tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          # Try to download from GitHub release first
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          echo "Attempting to download ESPHamClock.zip from release ${TAG_NAME}"
+          
+          # Use GitHub CLI to download the release asset
+          if gh release download "${TAG_NAME}" --pattern "ESPHamClock.zip" --repo "${{ github.repository }}" 2>/dev/null; then
+            echo "Successfully downloaded ESPHamClock.zip from release"
+            echo "DOWNLOAD_SUCCESS=true" >> $GITHUB_ENV
+          else
+            echo "Failed to download from release, will use fallback method"
+            echo "DOWNLOAD_SUCCESS=false" >> $GITHUB_ENV
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download from HamClock (fallback or non-tag)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') || env.DOWNLOAD_SUCCESS == 'false' }}
+        run: |
+          chmod +x scripts/retry_clearskyinstitute.sh
+          ./scripts/retry_clearskyinstitute.sh download https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
 
       - name: Cache ESPHamClock.zip
         uses: actions/upload-artifact@v4
