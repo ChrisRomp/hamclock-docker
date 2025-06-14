@@ -39,6 +39,7 @@ jobs:
         with:
           context: .
           platforms: linux/arm/v7
-          push: false
+          push: true
+          tags: chrisromp/hamclock-docker:armv7
           cache-from: type=gha
           cache-to: type=gha,mode=max
