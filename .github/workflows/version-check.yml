@@ -79,6 +79,7 @@ jobs:
         VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL }}
       run: |
         set -e
+        chmod +x ./scripts/retry_clearskyinstitute.sh
         echo "Getting release notes from $VERSION_CHECK_URL"
         ./scripts/retry_clearskyinstitute.sh get_content "$VERSION_CHECK_URL" ./release_notes.txt
 
