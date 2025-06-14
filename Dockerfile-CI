@@ -30,37 +30,15 @@ RUN ls -alh Makefile
 # Build for the target architecture with conservative flags to avoid illegal instruction errors
 # Remove -march=native and add conservative flags for QEMU compatibility
 # Use Docker's automatic platform arguments
-ARG TARGETPLATFORM
-ARG TARGETOS
-ARG TARGETARCH
-ARG TARGETVARIANT
+# ARG TARGETPLATFORM
+# ARG TARGETOS
+# ARG TARGETARCH
+# ARG TARGETVARIANT
 
-# Debug: show what platform we're building for
-RUN echo "Building for platform: $TARGETPLATFORM"
-RUN echo "Target OS: $TARGETOS, Target Arch: $TARGETARCH, Target Variant: $TARGETVARIANT"
-RUN sed -i 's/-march=native//g' Makefile && \
-    sed -i 's/-O3/-O2/g' Makefile && \
-    echo "Patching brightness.cpp to avoid system calls in _WEB_ONLY builds..." && \
-    sed -i '/static void setDisplayBrightness(bool log)/a\\n#ifdef _WEB_ONLY\n    // Web-only builds do not need display brightness control\n    return;\n#endif\n' brightness.cpp && \
-    case "$TARGETARCH" in \
-        "arm64") \
-            # Use very conservative ARM64 flags to avoid illegal instruction crashes
-            echo "Building for ARM64 with very conservative flags" && \
-            sed -i 's/std=c++17/std=c++17 -fno-aggressive-loop-optimizations -fno-tree-vectorize -fno-inline-functions -fno-omit-frame-pointer -mno-outline-atomics/' Makefile && \
-            sed -i 's/-O2/-O1/' Makefile ;; \
-        "arm") \
-            # Use very conservative ARMv7 flags - disable advanced features that may not be available
-            echo "Building for ARMv7 with very conservative flags" && \
-            sed -i 's/std=c++17/std=c++17 -fno-aggressive-loop-optimizations -fno-tree-vectorize -fno-inline-functions -fno-omit-frame-pointer -mno-unaligned-access/' Makefile && \
-            sed -i 's/-O2/-O1/' Makefile ;; \
-        *) \
-            # For x64/amd64, use the original working approach - no extra flags
-            echo "Building for x64/amd64 with standard flags" ;; \
-    esac && \
-    echo "Building for TARGETARCH: $TARGETARCH" && \
-    echo "Verifying _WEB_ONLY will be defined..." && \
-    grep -n "_WEB_ONLY" Makefile && \
-    make -j4 hamclock-web-${HAMCLOCK_RESOLUTION} FB_DEPTH=32 WIFI_NEVER=1
+# Build for the target architecture
+# Remove -march=native which causes issues with cross-compilation
+RUN sed -i 's/-march=native//g' Makefile
+RUN make -j4 hamclock-web-${HAMCLOCK_RESOLUTION}
 RUN make install
 
 USER root
