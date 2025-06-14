@@ -40,6 +40,6 @@ jobs:
           context: .
           platforms: linux/arm/v7
           push: true
-          tags: chrisromp/hamclock-docker:armv7
+          tags: test-armv7
           cache-from: type=gha
           cache-to: type=gha,mode=max
