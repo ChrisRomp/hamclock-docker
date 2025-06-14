@@ -22,20 +22,9 @@ COPY ESPHamClock.zip /hamclock/
 RUN unzip ESPHamClock.zip
 WORKDIR /hamclock/ESPHamClock
 
-# Change optimization level to -O2
-# Fixes build failure on ARM64
 RUN chmod 664 Makefile
 RUN ls -alh Makefile
 
-# Build for the target architecture with conservative flags to avoid illegal instruction errors
-# Remove -march=native and add conservative flags for QEMU compatibility
-# Use Docker's automatic platform arguments
-# ARG TARGETPLATFORM
-# ARG TARGETOS
-# ARG TARGETARCH
-# ARG TARGETVARIANT
-
-# Build for the target architecture
 # Remove -march=native which causes issues with cross-compilation
 RUN sed -i 's/-march=native//g' Makefile
 RUN make -j4 hamclock-web-${HAMCLOCK_RESOLUTION}
