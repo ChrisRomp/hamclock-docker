@@ -34,13 +34,15 @@ RUN sed -i 's/-march=native//g' Makefile && \
     sed -i 's/-O3/-O2/g' Makefile && \
     case "$TARGETARCH" in \
         "arm64") \
-            # Use conservative ARM64 flags that work with QEMU and real hardware
-            echo "Building for ARM64 with conservative flags" && \
-            sed -i 's/std=c++17/std=c++17 -fno-aggressive-loop-optimizations -fno-tree-vectorize/' Makefile ;; \
+            # Use very conservative ARM64 flags to avoid illegal instruction crashes
+            echo "Building for ARM64 with very conservative flags" && \
+            sed -i 's/std=c++17/std=c++17 -fno-aggressive-loop-optimizations -fno-tree-vectorize -fno-inline-functions -fno-omit-frame-pointer -mno-outline-atomics/' Makefile && \
+            sed -i 's/-O2/-O1/' Makefile ;; \
         "arm") \
-            # Use conservative ARMv7 flags - disable advanced features that may not be available
-            echo "Building for ARMv7 with conservative flags" && \
-            sed -i 's/std=c++17/std=c++17 -fno-aggressive-loop-optimizations -fno-tree-vectorize -mno-unaligned-access/' Makefile ;; \
+            # Use very conservative ARMv7 flags - disable advanced features that may not be available
+            echo "Building for ARMv7 with very conservative flags" && \
+            sed -i 's/std=c++17/std=c++17 -fno-aggressive-loop-optimizations -fno-tree-vectorize -fno-inline-functions -fno-omit-frame-pointer -mno-unaligned-access/' Makefile && \
+            sed -i 's/-O2/-O1/' Makefile ;; \
         *) \
             # For x64/amd64, use the original working approach - no extra flags
             echo "Building for x64/amd64 with standard flags" ;; \
