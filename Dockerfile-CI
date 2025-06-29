@@ -27,7 +27,10 @@ RUN ls -alh Makefile
 
 # Remove -march=native which causes issues with cross-compilation
 RUN sed -i 's/-march=native//g' Makefile
-RUN make -j4 hamclock-web-${HAMCLOCK_RESOLUTION}
+# Set up CFLAGS for cross-compilation
+ARG CFLAGS
+RUN CFLAGS="${CFLAGS:-}" \
+    make -j$(nproc) hamclock-web-${HAMCLOCK_RESOLUTION}
 RUN make install
 
 USER root
