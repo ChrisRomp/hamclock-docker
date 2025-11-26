@@ -120,7 +120,31 @@ volumes:
 
 ### Display Size
 
-The default Docker image will build HamClock for a screen resolution of 1600x960. If you wish to use another resolution, the Dockerfile takes a build argument which you can specify in docker-compose.yaml. Note that HamClock only supports specific resolutions, so be sure to choose only a supported resolution.
+The Docker images are available in three screen resolutions:
+
+| Resolution | Tag Examples |
+|------------|--------------|
+| 1600x960 (default) | `latest`, `v1.2.3`, `1600x960`, `v1.2.3-1600x960` |
+| 2400x1440 | `2400x1440`, `v1.2.3-2400x1440` |
+| 3200x1920 | `3200x1920`, `v1.2.3-3200x1920` |
+
+To use a specific resolution, simply specify the resolution tag when pulling the image:
+
+```sh
+# Pull the default resolution (1600x960)
+docker pull ghcr.io/chrisromp/hamclock-docker:latest
+
+# Pull a specific resolution
+docker pull ghcr.io/chrisromp/hamclock-docker:2400x1440
+docker pull ghcr.io/chrisromp/hamclock-docker:3200x1920
+
+# Pull a specific version at a specific resolution
+docker pull ghcr.io/chrisromp/hamclock-docker:v1.2.3-2400x1440
+```
+
+All resolution variants are multi-architecture images supporting linux/amd64, linux/arm64, and linux/arm/v7.
+
+If you wish to build from source with a custom resolution, the Dockerfile takes a build argument which you can specify in docker-compose.yaml. Note that HamClock only supports specific resolutions (800x480, 1600x960, 2400x1440, 3200x1920), so be sure to choose only a supported resolution.
 
 ## Accessing HamClock
 

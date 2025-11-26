@@ -76,7 +76,7 @@ jobs:
           overwrite: true
 
   build:
-    name: Build and push Docker image
+    name: Build ${{ matrix.resolution }}
     runs-on: ubuntu-latest
     needs: download
     permissions:
@@ -85,6 +85,18 @@ jobs:
       # This is used to complete the identity challenge
       # with sigstore/fulcio when running outside of PRs.
       id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        resolution: [1600x960, 2400x1440, 3200x1920]
+        include:
+          - resolution: 1600x960
+            is_default: true
+          - resolution: 2400x1440
+            is_default: false
+          - resolution: 3200x1920
+            is_default: false
 
     steps:
       - name: Checkout
@@ -114,15 +126,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Extract metadata (tags, labels) for Docker
+      # Generate tags for this resolution
+      - name: Generate Docker tags
+        id: tags
+        run: |
+          RESOLUTION="${{ matrix.resolution }}"
+          IS_DEFAULT="${{ matrix.is_default }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          IMAGE_LC=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          TAGS=""
+          
+          # Always add the resolution-only tag
+          TAGS="${IMAGE_LC}:${RESOLUTION}"
+          
+          # Check if this is a release tag
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            # Add version-resolution tag
+            TAGS="${TAGS},${IMAGE_LC}:${VERSION}-${RESOLUTION}"
+            
+            # For default resolution, also add version and latest tags
+            if [[ "$IS_DEFAULT" == "true" ]]; then
+              TAGS="${TAGS},${IMAGE_LC}:${VERSION}"
+              TAGS="${TAGS},${IMAGE_LC}:latest"
+            fi
+          else
+            # For non-release builds, only add latest for default resolution
+            if [[ "$IS_DEFAULT" == "true" ]]; then
+              TAGS="${TAGS},${IMAGE_LC}:latest"
+            fi
+          fi
+          
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "Generated tags: ${TAGS}"
+
+      # Extract metadata (labels) for Docker
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5.8.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            latest=auto
       
       # Download the ESPHamClock.zip artifact
       - name: Download ESPHamClock.zip artifact
@@ -140,10 +184,12 @@ jobs:
           file: Dockerfile-CI
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.tags.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: |
+            HAMCLOCK_RESOLUTION=${{ matrix.resolution }}
+          cache-from: type=gha,scope=build-${{ matrix.resolution }}
+          cache-to: type=gha,mode=max,scope=build-${{ matrix.resolution }}
 
       # Sign the resulting Docker image digest except on PRs.
       # This will only write to the public Rekor transparency log when the Docker
@@ -154,8 +200,8 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta.outputs.tags }}
+          TAGS: ${{ steps.tags.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+        run: echo "${TAGS}" | tr ',' '\n' | xargs -I {} cosign sign --yes {}@${DIGEST}

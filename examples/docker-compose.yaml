@@ -1,5 +1,10 @@
 services:
   web:
+    # Available resolution tags:
+    # - latest, 1600x960 (default resolution)
+    # - 2400x1440
+    # - 3200x1920
+    # For version-specific tags, use: v1.2.3, v1.2.3-1600x960, v1.2.3-2400x1440, etc.
     image: ghcr.io/chrisromp/hamclock-docker:latest
     ports:
       - "8080:8080/tcp"
