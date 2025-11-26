@@ -66,7 +66,7 @@ jobs:
           file: Dockerfile-CI
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/chrisromp/hamclock-docker:test-amd64
+          tags: ghcr.io/Entr04y/hamclock-docker:test-amd64
           no-cache: true
           # cache-from: type=gha
           # cache-to: type=gha,mode=max

@@ -1,8 +1,8 @@
 version: 2
 updates:
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: monthly
-    assignees:
-      - "ChrisRomp"
+- package-ecosystem: "github-actions"
+  directory: "/"
+  schedule:
+    interval: monthly
+  assignees:
+  - "Entr04y"

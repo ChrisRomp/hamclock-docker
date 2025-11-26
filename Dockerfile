@@ -1,12 +1,12 @@
 ARG BASE_IMAGE=alpine:3.21
 FROM ${BASE_IMAGE}
 
-LABEL org.opencontainers.image.authors="Chris Romp NZ6F"
+LABEL org.opencontainers.image.authors="James Ochs N4EAE"
 LABEL org.opencontainers.image.description="HamClock by WBØOEW in a Docker container"
-LABEL org.opencontainers.image.source="https://github.com/ChrisRomp/hamclock-docker"
+LABEL org.opencontainers.image.source="https://github.com/Entr04y/hamclock-docker"
 
 # HamClock supported resolutions are 800x480, 1600x960, 2400x1440 and 3200x1920 as of v3.02
-ARG HAMCLOCK_RESOLUTION=1600x960
+ARG HAMCLOCK_RESOLUTION=3200x1920
 
 # Install updates and required packages
 RUN apk update && apk upgrade
