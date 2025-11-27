@@ -91,33 +91,6 @@ Then pass the appropriate arguments to run the container:
 docker run --detach -p 8080:8080 -p 8081:8081 --name hamclock -v hamclock:/root/.hamclock ghcr.io/chrisromp/hamclock-docker:latest
 ```
 
-### Building from Source
-
-You can clone or download the source code to this repository, or just copy/paste the contents of the `Dockerfile` into a text file on your local machine called `Dockerfile`.
-
-Here is a `docker-compose.yaml` file ready to go:
-
-```yaml
-version: "3"
-services:
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # HamClock supported resolutions are 800x480, 1600x960, 2400x1440 and 3200x1920 as of v3.02
-        HAMCLOCK_RESOLUTION: 1600x960
-    ports:
-      - "8080:8080/tcp"
-      - "8081:8081/tcp"
-    volumes:
-      - data:/root/.hamclock
-    restart: unless-stopped
-
-volumes:
-  data:
-```
-
 ### Display Size
 
 The Docker images are available in three screen resolutions:
@@ -148,6 +121,33 @@ If you wish to build from source with a custom resolution, the Dockerfile takes 
 
 > [!WARNING]
 > HamClock will crash if your display is smaller than the resolution it was built for.
+
+### Building from Source
+
+You can clone or download the source code to this repository, or just copy/paste the contents of the `Dockerfile` into a text file on your local machine called `Dockerfile`.
+
+Here is a `docker-compose.yaml` file ready to go:
+
+```yaml
+version: "3"
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # HamClock supported resolutions are 800x480, 1600x960, 2400x1440 and 3200x1920 as of v3.02
+        HAMCLOCK_RESOLUTION: 1600x960
+    ports:
+      - "8080:8080/tcp"
+      - "8081:8081/tcp"
+    volumes:
+      - data:/root/.hamclock
+    restart: unless-stopped
+
+volumes:
+  data:
+```
 
 ## Accessing HamClock
 
