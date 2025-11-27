@@ -14,8 +14,8 @@ Thanks also to Julius Zeidler [@zeidos](https://github.com/zeidlos) for [his wor
     - [Running from the Image](#running-from-the-image)
         - [Docker Compose](#docker-compose)
         - [Docker Run](#docker-run)
+        - [Display Size](#display-size)
     - [Building from Source](#building-from-source)
-    - [Display Size](#display-size)
 - [Accessing HamClock](#accessing-hamclock)
     - [Web UI](#web-ui)
 - [Updating HamClock](#updating-hamclock)
@@ -91,7 +91,7 @@ Then pass the appropriate arguments to run the container:
 docker run --detach -p 8080:8080 -p 8081:8081 --name hamclock -v hamclock:/root/.hamclock ghcr.io/chrisromp/hamclock-docker:latest
 ```
 
-### Display Size
+#### Display Size
 
 The Docker images are available in three screen resolutions:
 
