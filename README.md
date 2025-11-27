@@ -146,6 +146,9 @@ All resolution variants are multi-architecture images supporting linux/amd64, li
 
 If you wish to build from source with a custom resolution, the Dockerfile takes a build argument which you can specify in docker-compose.yaml. Note that HamClock only supports specific resolutions (800x480, 1600x960, 2400x1440, 3200x1920), so be sure to choose only a supported resolution.
 
+> [!WARNING]
+> HamClock will crash if your display is smaller than the resolution it was built for.
+
 ## Accessing HamClock
 
 To access the running HamClock, you will need to know the hostname or IP address of your Docker host computer. That may be in the format of `192.168.x.x` on some networks, or you may be able to access it by the computer name. I will use the hostname `dockerhost` for these examples.
