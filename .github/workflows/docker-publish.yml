@@ -173,7 +173,7 @@ jobs:
       
       # Download the ESPHamClock.zip artifact
       - name: Download ESPHamClock.zip artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: ESPHamClock.zip
 
