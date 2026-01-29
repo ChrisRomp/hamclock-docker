@@ -1,3 +1,13 @@
+# HamClock END OF LIFE
+
+There has been news today (Jan 29 2026) that Elwood Downey, WB0OEW, has gone SK (passed away). The [HamClock website](https://www.clearskyinstitute.com/ham/HamClock/) states that HamClock's last release is 4.22 and that all HamClocks will cease working in June, 2026. 
+
+I will be archiving this repository at some point in the near term as no future releases will be occurring.
+
+`WB0OEW 73 DE NZ6F . .`
+
+Chris NZ6F
+
 # HamClock Docker
 
 A Dockerized build of [HamClock](https://www.clearskyinstitute.com/ham/HamClock/) by Elwood Downey, WB0OEW.
