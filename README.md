@@ -1,4 +1,12 @@
-# HamClock END OF LIFE
+## ~~HamClock END OF LIFE~~ -- HamClock lives?
+
+Well, it turns out there's a backend override built into HamClock, and hamclock.com explains it. Without getting into the details, I'll add this override to the HamClock Docker build here and push an update so these Docker-based HamClocks can continue operating.
+
+Check out https://hamclock.com for some of the details.
+
+More soon.
+
+### Previously
 
 There has been news today (Jan 29 2026) that Elwood Downey, WB0OEW, has gone SK (passed away). The [HamClock website](https://www.clearskyinstitute.com/ham/HamClock/) states that HamClock's last release is 4.22 and that all HamClocks will cease working in June, 2026. 
 
