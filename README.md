@@ -2,7 +2,7 @@
 
 The Docker images now include `-b hamclock.com:80` which points HamClock at the community-operated backend server. Your Docker-based HamClock will continue working after the June 2026 shutdown of the original backend at clearskyinstitute.com.
 
-See https://hamclock.com for details on the community backend.
+See https://hamclock.com for details on the community backend. GitHub source for the backend server available at https://github.com/komacke/open-hamclock-backend.
 
 If you need to point at a different backend server, override the container command in your `docker-compose.yaml`:
 
@@ -13,19 +13,9 @@ services:
     command: ["/usr/local/bin/hamclock", "-o", "-b", "your-server.example:80"]
 ```
 
-### Previously
-
-There has been news today (Jan 29 2026) that Elwood Downey, WB0OEW, has gone SK (passed away). The [HamClock website](https://www.clearskyinstitute.com/ham/HamClock/) states that HamClock's last release is 4.22 and that all HamClocks will cease working in June, 2026. 
-
-I will be archiving this repository at some point in the near term as no future releases will be occurring.
-
-`WB0OEW 73 DE NZ6F . .`
-
-Chris NZ6F
-
 # HamClock Docker
 
-A Dockerized build of [HamClock](https://hamclock.com/) by Elwood Downey, WB0OEW.
+A Dockerized build of [HamClock](https://hamclock.com/) by Elwood Downey, WB0OEW (SK).
 
 ![HamClock Screenshot](images/hamclock.png)
 
