@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# retry_clearskyinstitute.sh
-# A script to handle requests to clearskyinstitute.com with retry logic and exponential backoff
-# Usage: ./retry_clearskyinstitute.sh <action> <url> [output_file]
+# retry_download.sh
+# A script to handle HTTP requests with retry logic and exponential backoff
+# Usage: ./retry_download.sh <action> <url> [output_file]
 # Actions: 
 #   get_version - Fetch version info (returns first line)
 #   download - Download a file

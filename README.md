@@ -1,24 +1,21 @@
-## ~~HamClock END OF LIFE~~ -- HamClock lives?
+## HamClock Backend Migration
 
-Well, it turns out there's a backend override built into HamClock, and hamclock.com explains it. Without getting into the details, I'll add this override to the HamClock Docker build here and push an update so these Docker-based HamClocks can continue operating.
+The Docker images now include `-b hamclock.com:80` which points HamClock at the community-operated backend server. Your Docker-based HamClock will continue working after the June 2026 shutdown of the original backend at clearskyinstitute.com.
 
-Check out https://hamclock.com for some of the details.
+See https://hamclock.com for details on the community backend. GitHub source for the backend server available at https://github.com/komacke/open-hamclock-backend.
 
-More soon.
+If you need to point at a different backend server, override the container command in your `docker-compose.yaml`:
 
-### Previously
-
-There has been news today (Jan 29 2026) that Elwood Downey, WB0OEW, has gone SK (passed away). The [HamClock website](https://www.clearskyinstitute.com/ham/HamClock/) states that HamClock's last release is 4.22 and that all HamClocks will cease working in June, 2026. 
-
-I will be archiving this repository at some point in the near term as no future releases will be occurring.
-
-`WB0OEW 73 DE NZ6F . .`
-
-Chris NZ6F
+```yaml
+services:
+  web:
+    image: ghcr.io/chrisromp/hamclock-docker:latest
+    command: ["/usr/local/bin/hamclock", "-o", "-b", "your-server.example:80"]
+```
 
 # HamClock Docker
 
-A Dockerized build of [HamClock](https://www.clearskyinstitute.com/ham/HamClock/) by Elwood Downey, WB0OEW.
+A Dockerized build of [HamClock](https://hamclock.com/) by Elwood Downey, WB0OEW (SK).
 
 ![HamClock Screenshot](images/hamclock.png)
 
@@ -179,7 +176,7 @@ Likely you will see HamClock running but without your call sign, or if you were 
 
 ### HamClock Setup
 
-Please refer to the [HamClock User Guide](https://www.clearskyinstitute.com/ham/HamClock/HamClockKey.pdf) for detailed instructions, but here are a couple of settings I want to highlight:
+Please refer to the [HamClock User Guide](https://hamclock.com/ham/HamClock/HamClockKey.pdf) for detailed instructions, but here are a couple of settings I want to highlight:
 
 - **WiFi:** No need to set this up; HamClock on Docker will use your Docker network to connect to the internet.
 - **NTP:** If you want to skip the NTP (time server) latency/ping test on HamClock startup, you can set the NTP server to `OS` and HamClock will pull the time from your Docker host system.

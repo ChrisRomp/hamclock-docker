@@ -16,8 +16,8 @@ RUN mkdir /hamclock
 WORKDIR /hamclock
 
 # Download HamClock source
-# Sort-of following Desktop build steps from https://www.clearskyinstitute.com/ham/HamClock/
-RUN curl -O https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+# Sort-of following Desktop build steps from https://hamclock.com/ham/HamClock/
+RUN curl -O https://hamclock.com/ham/HamClock/ESPHamClock.zip
 RUN unzip ESPHamClock.zip
 WORKDIR /hamclock/ESPHamClock
 
@@ -46,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=2m --retries=3 CMD curl 
 
 # Start HamClock
 WORKDIR /hamclock/ESPHamClock
-CMD ["/usr/local/bin/hamclock", "-o"]
+CMD ["/usr/local/bin/hamclock", "-o", "-b", "hamclock.com:80"]
