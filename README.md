@@ -176,7 +176,7 @@ Likely you will see HamClock running but without your call sign, or if you were 
 
 ### HamClock Setup
 
-Please refer to the [HamClock User Guide](https://hamclock.com/ham/HamClock/HamClockKey.pdf) for detailed instructions, but here are a couple of settings I want to highlight:
+Please refer to the [HamClock User Guide](https://github.com/openhamclock/hamclock/tree/main/doc) for detailed instructions, but here are a couple of settings I want to highlight:
 
 - **WiFi:** No need to set this up; HamClock on Docker will use your Docker network to connect to the internet.
 - **NTP:** If you want to skip the NTP (time server) latency/ping test on HamClock startup, you can set the NTP server to `OS` and HamClock will pull the time from your Docker host system.
