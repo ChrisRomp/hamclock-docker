@@ -65,8 +65,8 @@ jobs:
       - name: Download from HamClock (fallback or non-tag)
         if: ${{ !startsWith(github.ref, 'refs/tags/') || env.DOWNLOAD_SUCCESS == 'false' }}
         run: |
-          chmod +x scripts/retry_clearskyinstitute.sh
-          ./scripts/retry_clearskyinstitute.sh download https://hamclock.com/ham/HamClock/ESPHamClock.zip
+          chmod +x scripts/retry_download.sh
+          ./scripts/retry_download.sh download https://hamclock.com/ham/HamClock/ESPHamClock.zip
 
       - name: Cache ESPHamClock.zip
         uses: actions/upload-artifact@v7

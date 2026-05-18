@@ -21,11 +21,11 @@ jobs:
     - name: Get remote version
       id: get_remote_version
       env:
-        VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL }}
+        VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL || 'https://hamclock.com/ham/HamClock/version.pl' }}
       run: |
         set -e
         echo "Getting version from $VERSION_CHECK_URL"
-        REMOTE_VERSION=$(./scripts/retry_clearskyinstitute.sh get_version "$VERSION_CHECK_URL")
+        REMOTE_VERSION=$(./scripts/retry_download.sh get_version "$VERSION_CHECK_URL")
         echo "Remote version: $REMOTE_VERSION" >> $GITHUB_STEP_SUMMARY
         echo "remote_version=$REMOTE_VERSION" >> "$GITHUB_OUTPUT"
 
@@ -76,17 +76,17 @@ jobs:
 
     - name: Get Release Notes
       env:
-        VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL }}
+        VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL || 'https://hamclock.com/ham/HamClock/version.pl' }}
       run: |
         set -e
-        chmod +x ./scripts/retry_clearskyinstitute.sh
+        chmod +x ./scripts/retry_download.sh
         echo "Getting release notes from $VERSION_CHECK_URL"
-        ./scripts/retry_clearskyinstitute.sh get_content "$VERSION_CHECK_URL" ./release_notes.txt
+        ./scripts/retry_download.sh get_content "$VERSION_CHECK_URL" ./release_notes.txt
 
     - name: Download HamClock
       run: |
         set -e
-        ./scripts/retry_clearskyinstitute.sh download "https://hamclock.com/ham/HamClock/ESPHamClock.zip"
+        ./scripts/retry_download.sh download "https://hamclock.com/ham/HamClock/ESPHamClock.zip"
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
