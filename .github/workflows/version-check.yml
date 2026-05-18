@@ -86,7 +86,7 @@ jobs:
     - name: Download HamClock
       run: |
         set -e
-        ./scripts/retry_clearskyinstitute.sh download "https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip"
+        ./scripts/retry_clearskyinstitute.sh download "https://hamclock.com/ham/HamClock/ESPHamClock.zip"
 
     - name: Create Release
       uses: softprops/action-gh-release@v2

@@ -66,7 +66,7 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') || env.DOWNLOAD_SUCCESS == 'false' }}
         run: |
           chmod +x scripts/retry_clearskyinstitute.sh
-          ./scripts/retry_clearskyinstitute.sh download https://www.clearskyinstitute.com/ham/HamClock/ESPHamClock.zip
+          ./scripts/retry_clearskyinstitute.sh download https://hamclock.com/ham/HamClock/ESPHamClock.zip
 
       - name: Cache ESPHamClock.zip
         uses: actions/upload-artifact@v5
