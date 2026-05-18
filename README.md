@@ -1,10 +1,17 @@
-## ~~HamClock END OF LIFE~~ -- HamClock lives?
+## HamClock Backend Migration
 
-Well, it turns out there's a backend override built into HamClock, and hamclock.com explains it. Without getting into the details, I'll add this override to the HamClock Docker build here and push an update so these Docker-based HamClocks can continue operating.
+The Docker images now include `-b hamclock.com:80` which points HamClock at the community-operated backend server. Your Docker-based HamClock will continue working after the June 2026 shutdown of the original backend at clearskyinstitute.com.
 
-Check out https://hamclock.com for some of the details.
+See https://hamclock.com for details on the community backend.
 
-More soon.
+If you need to point at a different backend server, override the container command in your `docker-compose.yaml`:
+
+```yaml
+services:
+  web:
+    image: ghcr.io/chrisromp/hamclock-docker:latest
+    command: ["/usr/local/bin/hamclock", "-o", "-b", "your-server.example:80"]
+```
 
 ### Previously
 
