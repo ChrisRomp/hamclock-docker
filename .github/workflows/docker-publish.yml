@@ -163,7 +163,7 @@ jobs:
       # https://github.com/docker/setup-buildx-action
       - name: Set up Docker Buildx
         if: steps.tags.outputs.build == 'true'
-        uses: docker/setup-buildx-action@v4.0.0
+        uses: docker/setup-buildx-action@v4.1.0
 
       # Login against a Docker registry only when we will push
       # https://github.com/docker/login-action
