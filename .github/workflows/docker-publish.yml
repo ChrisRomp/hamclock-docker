@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Check IP
         run : curl https://icanhazip.com && curl https://ipv4.icanhazip.com
@@ -102,7 +102,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Generate tags and decide whether to build/push for this matrix entry.
       # Runs early because it only needs matrix variables and git ref.
