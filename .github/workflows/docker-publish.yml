@@ -181,7 +181,7 @@ jobs:
       - name: Extract Docker metadata
         if: steps.tags.outputs.build == 'true'
         id: meta
-        uses: docker/metadata-action@v6.1.0
+        uses: docker/metadata-action@v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
       
