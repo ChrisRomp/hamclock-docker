@@ -125,6 +125,18 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/hamclock-playwright" playwright
           "$RUNNER_TEMP/hamclock-playwright/node_modules/.bin/playwright" install --with-deps chromium
           echo "PLAYWRIGHT_NODE_PATH=$RUNNER_TEMP/hamclock-playwright/node_modules" >> "$GITHUB_ENV"
+      - name: Probe public backend
+        if: matrix.platform == 'linux/amd64'
+        run: |
+          mkdir -p smoke-artifacts
+          if curl -fsS --max-time 15 http://ohb.hamclock.app/ssn/ssn-31.txt \
+              -o smoke-artifacts/backend-sample.txt 2> smoke-artifacts/backend-error.log \
+              && test -s smoke-artifacts/backend-sample.txt; then
+            echo 'Public backend returned sample data.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '::warning::Public backend sample data was unavailable; see backend-error.log.'
+            echo 'Public backend sample data was unavailable.' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Smoke test
         env:
           REPOSITORY: ${{ github.repository }}
