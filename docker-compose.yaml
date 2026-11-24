@@ -1,5 +1,6 @@
 services:
   web:
+    # First run: python3 scripts/ohc_release.py --output ESPHamClock.zip
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,6 +12,8 @@ services:
       - "8081:8081/tcp"
     volumes:
       - data:/root/.hamclock
+    # environment:
+    #   BACKEND_HOST: ohb.hamclock.app:80
     restart: unless-stopped
 
 volumes:

@@ -1,2 +1,4 @@
 ESPHamClock.zip
 ESPHamClock/*
+__pycache__/
+smoke-artifacts/

@@ -1,192 +1,83 @@
-## HamClock Backend Migration
-
-The Docker images now include `-b hamclock.com:80` which points HamClock at the community-operated backend server. Your Docker-based HamClock will continue working after the June 2026 shutdown of the original backend at clearskyinstitute.com.
-
-See https://hamclock.com for details on the community backend. GitHub source for the backend server available at https://github.com/komacke/open-hamclock-backend.
-
-If you need to point at a different backend server, override the container command in your `docker-compose.yaml`:
-
-```yaml
-services:
-  web:
-    image: ghcr.io/chrisromp/hamclock-docker:latest
-    command: ["/usr/local/bin/hamclock", "-o", "-b", "your-server.example:80"]
-```
-
 # HamClock Docker
 
-A Dockerized build of [HamClock](https://hamclock.com/) by Elwood Downey, WB0OEW (SK).
+A Docker distribution of [OpenHamClock](https://github.com/openhamclock/hamclock), based on HamClock by Elwood Downey, WB0OEW (SK). Thanks to Julius Zeidler ([@zeidlos](https://github.com/zeidlos)) for his earlier [Dockerized HamClock](https://github.com/zeidlos/hamclock-docker).
 
-![HamClock Screenshot](images/hamclock.png)
+![HamClock screenshot](images/hamclock.png)
 
-Thanks also to Julius Zeidler [@zeidos](https://github.com/zeidlos) for [his work](https://github.com/zeidlos/hamclock-docker) on a Dockerized version of HamClock. I wanted to take some different approaches, so this is my take on it, but I ran HamClock initially from his image and I thank him for his work.
+The existing GHCR stable images are still the older HamClock build using `hamclock.com`; they are not automatically replaced by the OpenHamClock candidates. OpenHamClock publishes its own [Docker image and manager](https://github.com/openhamclock/hamclock/tree/main/docker), which may be preferable for new installations. This project retains the existing GHCR image name, resolution tags, settings volume and command conventions.
 
-[![Docker Build](https://github.com/ChrisRomp/hamclock-docker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/ChrisRomp/hamclock-docker/actions/workflows/docker-publish.yml)
+## Run a published image
 
-# Contents
-- [Prerequisites](#prerequisites)
-- [Running HamClock](#running-hamclock)
-    - [Running from the Image](#running-from-the-image)
-        - [Docker Compose](#docker-compose)
-        - [Docker Run](#docker-run)
-        - [Display Size](#display-size)
-    - [Building from Source](#building-from-source)
-- [Accessing HamClock](#accessing-hamclock)
-    - [Web UI](#web-ui)
-- [Updating HamClock](#updating-hamclock)
+Install Docker and Docker Compose, then save [examples/docker-compose.yaml](examples/docker-compose.yaml) as `docker-compose.yaml` and run:
 
-## Prerequisites
+```sh
+docker compose up -d
+```
 
-You will need to have a computer running [Docker](https://docs.docker.com/get-docker/). Once installed, you can verify it's running with `docker run --rm hello-world` ([docs](https://hub.docker.com/_/hello-world)).
+Open `http://YOUR_DOCKER_HOST:8081/live.html`. The API is on port 8080; port 8082 can optionally expose the read-only UI. Change the host side of the port mappings if needed. Settings persist in the `data` volume mounted at `/root/.hamclock`.
 
-This application will work in Docker running on:
+The current stable resolution tags are:
 
-- ✅ Linux x86/64
-- ✅ Windows 10/11 (with [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install))
-- ✅ Raspberry Pi (confirmed on Pi 3b+ running Raspbian 11)
-- ✅ Mac OS (confirmed on M3 running MacOS 15.1 Sequoia)
+| Resolution | Tags |
+|---|---|
+| 1600x960 | `latest`, `1600x960`, version or version-`1600x960` |
+| 2400x1440 | `2400x1440`, version-`2400x1440` |
+| 3200x1920 | `3200x1920`, version-`3200x1920` |
 
-If you run into problems getting it to run, please log an [issue](https://github.com/ChrisRomp/hamclock-docker/issues). Please be detailed about your platform and any errors!
+These are separate, fixed-resolution images, not runtime-resizable displays. The existing stable images support `linux/amd64`, `linux/arm64` and `linux/arm/v7`. A release or tag in GitHub does not necessarily mean a corresponding image was published.
 
-If you're already lost, may I recommend buying a [prebulit HamClock](https://www.veritiumhfclock.com/)?
+## Test an OpenHamClock candidate
 
-## Running HamClock
+Candidate builds are opt-in and do **not** move `latest`, the resolution aliases, or existing version tags. The manually dispatched Docker Build workflow publishes unique tags of the form:
 
-You can run this app by either by pulling the container from the prebuilt container in this repository, or pulling the source and building the container locally. Both approaches are documented here.
+```text
+ghcr.io/chrisromp/hamclock-docker:candidate-v4.33.0-1600x960-RUN_ID-ATTEMPT
+```
 
-### Running from the Image
+Use the exact tag and digest from the workflow run summary; substitute the desired resolution. Check the workflow's smoke-test artifacts for startup logs, API output and, on amd64, a Playwright screenshot. A published candidate may still have failing smoke tests; review the run before using it. Multi-architecture coverage is validated during publication, and a failed target is not silently removed.
 
-To run containers with Docker you can use the command line `docker run` argument, or use Docker Compose. I find for most users the Docker Compose option is easiest, as it encapuslates all of the arguments in one place in a nice, repeatable manner. This is also the version that some NAS devices expect, like QNAP.
+Back up the settings volume before trying a candidate, and use a **copy** of it for testing. Find the actual volume name with `docker volume ls` or `docker inspect` on the existing container. For example, with the original stopped:
 
-To run:
+```sh
+docker run --rm -v YOUR_VOLUME:/source:ro -v "$(pwd):/backup" alpine \
+  tar czf /backup/hamclock-settings-backup.tar.gz -C /source .
+docker volume create hamclock-candidate-data
+docker run --rm -v hamclock-candidate-data:/destination -v "$(pwd):/backup:ro" alpine \
+  tar xzf /backup/hamclock-settings-backup.tar.gz -C /destination
+```
 
-1. Install [Prerequisites](#prerequisites).
-1. (Optional) Create a directory somewhere called hamclock or hamclock-docker.
-1. Download [examples/docker-compose.yaml](https://raw.githubusercontent.com/ChrisRomp/hamclock-docker/main/examples/docker-compose.yaml) and save to that folder.
-1. Run `docker-compose up -d` from inside of the folder where `docker-compose.yaml` lives.
-1. If you didn't receive any errors, see [Accessing HamClock](#accessing-hamclock) below for next steps.
+Use the candidate tag and copy in a separate Compose project and different host ports, or stop the existing container first. Do not mount the same writable settings volume in both instances. Keep the original backup for rollback.
 
-Or you can paste this YAML into a `docker-compose.yaml` file yourself:
+The candidate defaults to the public [Open HamClock Backend](https://github.com/openhamclock/open-hamclock-backend) at `ohb.hamclock.app:80`. Configure a different host and port with:
 
 ```yaml
-services:
-  web:
-    image: ghcr.io/chrisromp/hamclock-docker:latest
-    ports:
-      - "8080:8080/tcp"
-      - "8081:8081/tcp"
-    volumes:
-      - data:/root/.hamclock
-    restart: unless-stopped
-
-volumes:
-  data:
+environment:
+  BACKEND_HOST: your-server.example:80
 ```
 
-> [!NOTE]
-> If your Docker host computer is already hosting an application which is using TCP ports `8080` (used by HamClock's API) or `8081` (used by the HamClock web UI), then you can modify them in the `Dockerfile` using the syntax `HOST:CONTAINER`.
->
-> For example, to change the web UI from port `8081` to port `80`, you would change the `8081:8081/tcp` port to `80:8081/tcp`.
->
-> See the [Docker Compose documentation](https://docs.docker.com/compose/compose-file/05-services/#ports) for more information.
+The legacy full `command: ["/usr/local/bin/hamclock", "-o", "-b", "your-server.example:80"]` override also works and takes precedence over that environment variable. The backend is separate from the frontend; self-hosting it is optional. Public backend reachability depends on your network and the service.
 
-To run, change to the folder with your `Dockerfile` and `docker-compose.yaml` and execute: `docker compose up -d`
+## Build from source
 
-#### Docker Run
-
-If you prefer to use `docker run`, the equivalent commands to the above would be to first create a Docker volume if you have not already:
+With `gh`, Python 3 and Docker installed, download and verify the latest stable OHC source asset, then build:
 
 ```sh
-docker volume create hamclock
+python3 scripts/ohc_release.py --output ESPHamClock.zip
+docker compose up --build -d
 ```
 
-Then pass the appropriate arguments to run the container:
+Use `--tag v4.33.0` to pin an exact release, or `--channel beta` to select the newest beta. The script verifies the GitHub release asset's SHA-256; it does not fall back to an unversioned download. Set `HAMCLOCK_RESOLUTION` in the source Compose file to one of `800x480`, `1600x960`, `2400x1440`, or `3200x1920` before building.
 
-```sh
-docker run --detach -p 8080:8080 -p 8081:8081 --name hamclock -v hamclock:/root/.hamclock ghcr.io/chrisromp/hamclock-docker:latest
-```
+## Updating and rollback
 
-#### Display Size
+Back up settings first. For image-based deployments, update the image tag in Compose if necessary, then run `docker compose pull && docker compose up -d`. Updating inside the HamClock web UI does not persist reliably across container recreation.
 
-The Docker images are available in three screen resolutions:
+If a candidate does not work, stop it and restore the original deployment and saved settings. The legacy `v4.25` image and `v4.25-2400x1440` / `v4.25-3200x1920` tags correspond to the existing floating images observed during the migration assessment; use the matching resolution or a previously recorded digest. Do not assume `v4.27` was published as a container image. Stable promotion of OpenHamClock images is a separate decision.
 
-| Resolution | Tag Examples |
-|------------|--------------|
-| 1600x960 (default) | `latest`, `v1.2.3`, `1600x960`, `v1.2.3-1600x960` |
-| 2400x1440 | `2400x1440`, `v1.2.3-2400x1440` |
-| 3200x1920 | `3200x1920`, `v1.2.3-3200x1920` |
+## Moving to the upstream manager
 
-To use a specific resolution, simply specify the resolution tag when pulling the image:
-
-```sh
-# Pull the default resolution (1600x960)
-docker pull ghcr.io/chrisromp/hamclock-docker:latest
-
-# Pull a specific resolution
-docker pull ghcr.io/chrisromp/hamclock-docker:2400x1440
-docker pull ghcr.io/chrisromp/hamclock-docker:3200x1920
-
-# Pull a specific version at a specific resolution
-docker pull ghcr.io/chrisromp/hamclock-docker:v1.2.3-2400x1440
-```
-
-All resolution variants are multi-architecture images supporting linux/amd64, linux/arm64, and linux/arm/v7.
-
-If you wish to build from source with a custom resolution, the Dockerfile takes a build argument which you can specify in docker-compose.yaml. Note that HamClock only supports specific resolutions (800x480, 1600x960, 2400x1440, 3200x1920), so be sure to choose only a supported resolution.
-
-> [!WARNING]
-> HamClock will crash if your display is smaller than the resolution it was built for.
-
-### Building from Source
-
-You can clone or download the source code to this repository, or just copy/paste the contents of the `Dockerfile` into a text file on your local machine called `Dockerfile`.
-
-Here is a `docker-compose.yaml` file ready to go:
-
-```yaml
-version: "3"
-services:
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # HamClock supported resolutions are 800x480, 1600x960, 2400x1440 and 3200x1920 as of v3.02
-        HAMCLOCK_RESOLUTION: 1600x960
-    ports:
-      - "8080:8080/tcp"
-      - "8081:8081/tcp"
-    volumes:
-      - data:/root/.hamclock
-    restart: unless-stopped
-
-volumes:
-  data:
-```
-
-## Accessing HamClock
-
-To access the running HamClock, you will need to know the hostname or IP address of your Docker host computer. That may be in the format of `192.168.x.x` on some networks, or you may be able to access it by the computer name. I will use the hostname `dockerhost` for these examples.
-
-### Web UI
-
-Open a web browser to: `http://dockerhost:8081/live.html`
-
-Likely you will see HamClock running but without your call sign, or if you were fast enough you may see it prompting for setup. If not, leave this browser window open and open another tab/window and enter: `http://dockerhost:8080/restart`. Switch back to the first tab and you should see HamClock prompting you to enter setup. Click your mouse anywhere and configure HamClock.
-
-### HamClock Setup
-
-Please refer to the [HamClock User Guide](https://github.com/openhamclock/hamclock/tree/main/doc) for detailed instructions, but here are a couple of settings I want to highlight:
-
-- **WiFi:** No need to set this up; HamClock on Docker will use your Docker network to connect to the internet.
-- **NTP:** If you want to skip the NTP (time server) latency/ping test on HamClock startup, you can set the NTP server to `OS` and HamClock will pull the time from your Docker host system.
-
-## Updating HamClock
-
-You should be able to update HamClock in place through the web UI. It will prompt you when there's an update available, and you can apply it.
-
-I may occasionally build updated images here, but that will not be the primary way to keep your application up to date.
+The [OHC manager](https://github.com/openhamclock/hamclock/tree/main/docker) uses a different image, defaults to 2400x1440, and mounts `hc.settings` as `/opt/hamclock/.hamclock/eeprom` under UID/GID 1199. To migrate, stop the old container, back up its full settings volume, copy its `eeprom` file to `hc.settings`, and make that copy writable by UID/GID 1199. Select your original size with the manager's `-s` option and avoid host-port conflicts. Keep the original volume and backup until migration is verified.
 
 ## Support
 
-This application is provided with no guarantees it will work for anything. But if you're having problems, please open a [new issue](https://github.com/ChrisRomp/hamclock-docker/issues) and I will try and provide some advice or a fix as my time allows.
+This project is provided without guarantees. Please [open an issue](https://github.com/ChrisRomp/hamclock-docker/issues) with your platform and relevant errors if you encounter a problem.

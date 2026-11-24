@@ -1,102 +1,29 @@
-name: Check for Updates
+name: Check OpenHamClock releases
 
 on:
   schedule:
-  - cron: "37 */6 * * *"
+    - cron: "37 */6 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  version-check:
-    name: Compare Local and Remote Versions
+  check:
     runs-on: ubuntu-latest
-    outputs:
-        update_required: ${{ steps.compare_versions.outputs.update_required }}
-        current_version: ${{ steps.get_release_version.outputs.current_version }}
-        remote_version: ${{ steps.get_remote_version.outputs.remote_version }}
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v7
-
-    - name: Get remote version
-      id: get_remote_version
-      env:
-        VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL || 'https://hamclock.com/ham/HamClock/version.pl' }}
-      run: |
-        set -e
-        echo "Getting version from $VERSION_CHECK_URL"
-        REMOTE_VERSION=$(./scripts/retry_download.sh get_version "$VERSION_CHECK_URL")
-        echo "Remote version: $REMOTE_VERSION" >> $GITHUB_STEP_SUMMARY
-        echo "remote_version=$REMOTE_VERSION" >> "$GITHUB_OUTPUT"
-
-    - name: Get current release version
-      id: get_release_version
-      env:
-        GITHUB_REPOSITORY: ${{ github.repository }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        set -e
-        URL="https://api.github.com/repos/$GITHUB_REPOSITORY/releases/latest"
-        echo "Getting version from $URL"
-        CURRENT_VERSION=$(curl -s -m 10 -H "Authorization: token $GITHUB_TOKEN" "$URL" | jq -r '.tag_name' | sed 's/^v//')
-        echo "Current version: $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
-        echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
-
-    - name: Compare versions
-      id: compare_versions
-      env:
-        CURRENT_VERSION : ${{ steps.get_release_version.outputs.current_version }}
-        REMOTE_VERSION : ${{ steps.get_remote_version.outputs.remote_version }}
-      run: |
-        set -e
-        if [ "$(printf '%s\n' "$CURRENT_VERSION" "$REMOTE_VERSION" | sort -V --reverse | head -n 1)" == "$CURRENT_VERSION" ]; then
-            echo "Current version $CURRENT_VERSION is greater than or equal to Remote version $REMOTE_VERSION."
-            echo "No update required." >> $GITHUB_STEP_SUMMARY
-            echo "update_required=false" >> "$GITHUB_OUTPUT"
-        else
-            echo "Remote version $REMOTE_VERSION is newer than Current version $CURRENT_VERSION."
-            echo "Creating release... :rocket:" >> $GITHUB_STEP_SUMMARY
-            echo "update_required=true" >> "$GITHUB_OUTPUT"
-        fi
-
-  new-release:
-    name: Create New Release
-    runs-on: ubuntu-latest
-    needs: version-check
-    if: ${{ needs.version-check.outputs.update_required == 'true' }}
-    permissions:
-        contents: write
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v7
-
-    - name: Check IP
-      run: curl https://icanhazip.com && curl https://ipv4.icanhazip.com
-
-    - name: Get Release Notes
-      env:
-        VERSION_CHECK_URL: ${{ vars.VERSION_CHECK_URL || 'https://hamclock.com/ham/HamClock/version.pl' }}
-      run: |
-        set -e
-        chmod +x ./scripts/retry_download.sh
-        echo "Getting release notes from $VERSION_CHECK_URL"
-        ./scripts/retry_download.sh get_content "$VERSION_CHECK_URL" ./release_notes.txt
-
-    - name: Download HamClock
-      run: |
-        set -e
-        ./scripts/retry_download.sh download "https://hamclock.com/ham/HamClock/ESPHamClock.zip"
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v3
-      env:
-          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
-          NEW_VERSION: ${{ needs.version-check.outputs.remote_version }}
-      with:
-          tag_name: v${{ needs.version-check.outputs.remote_version }}
-          body_path: ./release_notes.txt
-          generate_release_notes: true
-          append_body: true
-          make_latest: true
-          files: ./ESPHamClock.zip
+      - uses: actions/checkout@v7
+      - name: Find current releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          stable=$(python3 scripts/ohc_release.py --channel stable)
+          beta=$(python3 scripts/ohc_release.py --channel beta)
+          {
+            echo '## OpenHamClock releases'
+            echo "- Stable: $(echo "$stable" | jq -r .tag)"
+            echo "- Beta: $(echo "$beta" | jq -r .tag)"
+            echo
+            echo 'Run Docker Build manually to publish an opt-in candidate. Stable tags are not changed.'
+          } >> "$GITHUB_STEP_SUMMARY"
