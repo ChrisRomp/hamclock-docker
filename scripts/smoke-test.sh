@@ -91,4 +91,11 @@ docker restart "$container" > /dev/null
 api_port=$(docker port "$container" 8080/tcp | sed 's/.*://')
 wait_for_api
 curl -fsS --max-time 10 "http://127.0.0.1:$api_port/get_de.txt" > smoke-artifacts/de.txt
-grep -Eq '^Call[[:space:]]+N0CAL[[:space:]]*$' smoke-artifacts/de.txt
+if ! grep -Eq '^Call[[:space:]]+N0CAL[[:space:]]*$' smoke-artifacts/de.txt; then
+    echo "Callsign did not persist across restart" >&2
+    exit 1
+fi
+if grep -Eq '^DE_time[[:space:]]+1970-' smoke-artifacts/de.txt; then
+    echo "Clock did not use the computer time" >&2
+    exit 1
+fi
