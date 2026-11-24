@@ -129,7 +129,7 @@ jobs:
         if: matrix.platform == 'linux/amd64'
         run: |
           mkdir -p smoke-artifacts
-          if curl -fsS --max-time 15 http://ohb.hamclock.app/ssn/ssn-31.txt \
+          if curl -fsS --max-time 15 http://ohb.hamclock.app/ham/HamClock/ssn/ssn-31.txt \
               -o smoke-artifacts/backend-sample.txt 2> smoke-artifacts/backend-error.log \
               && test -s smoke-artifacts/backend-sample.txt; then
             echo 'Public backend returned sample data.' >> "$GITHUB_STEP_SUMMARY"
