@@ -76,7 +76,19 @@ grep -Eq '^BEHost[[:space:]]+ohb\.hamclock\.app[[:space:]]*$' smoke-artifacts/sy
 grep -Eq '^BEPort[[:space:]]+80[[:space:]]*$' smoke-artifacts/sys.txt
 curl -fsS --max-time 10 "http://127.0.0.1:$ui_port/live.html" > smoke-artifacts/live.html
 if [ -n "${PLAYWRIGHT_NODE_PATH:-}" ]; then
+    for _ in $(seq 1 120); do
+        docker logs "$container" > smoke-artifacts/startup.log 2>&1
+        if grep -q 'Starting Arduino loop()' smoke-artifacts/startup.log; then break; fi
+        sleep 5
+    done
+    if ! grep -q 'Starting Arduino loop()' smoke-artifacts/startup.log; then
+        echo "Main loop did not start" >&2
+        exit 1
+    fi
     NODE_PATH="$PLAYWRIGHT_NODE_PATH" node scripts/screenshot.js "http://127.0.0.1:$ui_port/live.html"
 fi
 docker restart "$container" > /dev/null
+api_port=$(docker port "$container" 8080/tcp | sed 's/.*://')
 wait_for_api
+curl -fsS --max-time 10 "http://127.0.0.1:$api_port/get_de.txt" > smoke-artifacts/de.txt
+grep -Eq '^Call[[:space:]]+N0CAL[[:space:]]*$' smoke-artifacts/de.txt
