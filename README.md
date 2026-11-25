@@ -4,7 +4,7 @@ A Docker distribution of [OpenHamClock](https://github.com/openhamclock/hamclock
 
 ![HamClock screenshot](images/hamclock.png)
 
-Stable GHCR images use the OpenHamClock frontend and public Open HamClock Backend. OpenHamClock also publishes its own [Docker image and manager](https://github.com/openhamclock/hamclock/tree/main/docker), which may be preferable for new installations. This project retains the existing GHCR image name, resolution tags, settings volume and command conventions, including support for 32-bit ARM.
+This project's `hamclock-docker` containers use the OpenHamClock frontend and the public Open HamClock Backend. The image name, resolution tags, settings volume, and command conventions are unchanged, and 32-bit ARM is still supported. OpenHamClock also publishes its own [Docker image and manager](https://github.com/openhamclock/hamclock/tree/main/docker), which may be preferable for new installations.
 
 ## Run a published image
 
