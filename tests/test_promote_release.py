@@ -225,16 +225,60 @@ class PromotionTests(unittest.TestCase):
 
     @patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"})
     @patch("scripts.promote_release.latest_project_release")
-    @patch("scripts.promote_release.promote")
-    def test_same_release_is_not_rebuilt_and_older_release_cannot_be_promoted(self, promote, latest):
+    @patch("scripts.promote_release.subprocess.check_output")
+    def test_check_blocks_rebuilding_partially_published_versions(self, output, latest):
+        registry = Registry.__new__(Registry)
+        registry.repository = "owner/repo"
+        aliases = ["v4.34.0", *[f"v4.34.0-{size}" for size in RESOLUTIONS],
+                   "v4.35.0-2400x1440"]
+        with patch("scripts.promote_release.Registry", return_value=registry), \
+                patch("sys.argv", ["promote", "--tag", "v4.34.0", "--check"]):
+            for previous in (None, {"tag_name": "v4.33.0"}):
+                latest.return_value = previous
+                for alias in aliases:
+                    output.return_value = json.dumps({"Tags": ["latest", "v4.25", alias]})
+                    with self.subTest(previous=previous, alias=alias), \
+                            patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                        with self.assertRaisesRegex(ValueError, "original build_run_id") as error:
+                            main()
+                        self.assertIn("upstream_tag", str(error.exception))
+                        self.assertIn("publish_stable=true", str(error.exception))
+                        self.assertEqual(stdout.getvalue(), "")
+
+    @patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"})
+    @patch("scripts.promote_release.latest_project_release")
+    @patch("scripts.promote_release.subprocess.check_output")
+    def test_check_allows_new_versions_above_the_registry_floor(self, output, latest):
+        registry = Registry.__new__(Registry)
+        registry.repository = "owner/repo"
         latest.return_value = {"tag_name": "v4.33.0"}
-        with patch("sys.argv", ["promote", "--tag", "v4.33.0", "--check"]):
-            with patch("sys.stdout", new_callable=io.StringIO) as output:
-                main()
-            self.assertFalse(json.loads(output.getvalue())["update_required"])
+        with patch("scripts.promote_release.Registry", return_value=registry), \
+                patch("sys.argv", ["promote", "--tag", "v4.34.0", "--check"]):
+            for tags in ([], ["latest", "v4.25", "v4.33.0-2400x1440",
+                              "candidate-v4.34.0-1600x960-123-1", "v4.35b01.0"]):
+                output.return_value = json.dumps({"Tags": tags})
+                with self.subTest(tags=tags), patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                    main()
+                    self.assertEqual(json.loads(stdout.getvalue()),
+                                     {"current": "v4.33.0", "update_required": True})
+
+    @patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"})
+    @patch("scripts.promote_release.latest_project_release")
+    @patch("scripts.promote_release.promote")
+    @patch("scripts.promote_release.Registry")
+    def test_same_release_is_not_rebuilt_and_older_release_cannot_be_promoted(
+        self, registry, promote, latest
+    ):
+        latest.return_value = {"tag_name": "v4.33.0"}
+        for tag in ("v4.33.0", "v4.32.0"):
+            with self.subTest(tag=tag), patch("sys.argv", ["promote", "--tag", tag, "--check"]):
+                with patch("sys.stdout", new_callable=io.StringIO) as output:
+                    main()
+                self.assertFalse(json.loads(output.getvalue())["update_required"])
         with patch("sys.argv", ["promote", "--tag", "v4.32.0", "--run-id", "123"]):
             with self.assertRaisesRegex(ValueError, "downgrade"):
                 main()
+        registry.assert_not_called()
         promote.assert_not_called()
 
     @patch("scripts.promote_release.urlopen")

@@ -58,7 +58,9 @@ To publish a previously tested build without rebuilding, manually run Docker Bui
 
 For testing without changing stable tags, leave `publish_stable` disabled and use the exact staging tag and digest from the run summary. Check the completed run and its smoke-test artifacts for startup logs, API output, and Playwright screenshots before using that build.
 
-Publication refuses downgrades against both published releases and version tags already in the registry. All targets are checked before any changes; floating aliases move only after version tags, with `latest` last. Registry tag updates are not atomic across resolutions. If only publication fails, rerun the failed job or supply the original build run ID (not a publication-only run). The `promotion-ATTEMPT` artifact records previous and new digests for recovery. If rebuilding, rerun all jobs so every size and its smoke tests share one attempt. Builds without retained source and digest artifacts cannot be published this way.
+Publication refuses downgrades against both published releases and version tags already in the registry. All targets are checked before any changes; floating aliases move only after version tags, with `latest` last. Registry tag updates are not atomic across resolutions.
+
+Before scheduling a new build, the watcher checks the registry. If the requested or a newer version is already present without its GitHub release, even as a single resolution-specific tag, the check fails with recovery instructions instead of rebuilding. If only publication fails, rerun the failed job or supply the original build run ID (not a publication-only run). The `promotion-ATTEMPT` artifact records previous and new digests for recovery. If rebuilding before any version tags were written, rerun all jobs so every size and its smoke tests share one attempt. Builds without retained source and digest artifacts cannot be published this way.
 
 ## Updating and rollback
 

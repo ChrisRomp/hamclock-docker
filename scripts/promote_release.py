@@ -237,6 +237,15 @@ def main():
     previous = latest_project_release(repository)
     current_version = published_version(previous["tag_name"]) if previous else (-1, -1, -1)
     if args.check:
+        if version > current_version:
+            newest = Registry(repository).newest_version()
+            if newest and published_version(newest) >= version:
+                raise ValueError(
+                    f"Registry already contains version tags for {newest}, but its GitHub "
+                    "release is missing. Do not rebuild; rerun the original failed publish "
+                    "job or run Docker Build with its exact upstream_tag, "
+                    "publish_stable=true, and the original build_run_id."
+                )
         print(json.dumps({"current": previous["tag_name"] if previous else None,
                           "update_required": version > current_version}))
         return
