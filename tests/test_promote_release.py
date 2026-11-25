@@ -82,6 +82,25 @@ class PromotionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_run(run, jobs[1:], "owner/repo", "456")
 
+    def test_retry_after_cancel_or_timeout_requires_only_publish_to_have_stopped(self):
+        for overall, stopped in (("cancelled", "cancelled"), ("timed_out", "timed_out"),
+                                 ("failure", "timed_out")):
+            with self.subTest(overall=overall, publish=stopped):
+                run = {**successful_run(), "conclusion": overall}
+                publish = {"name": "publish", "conclusion": stopped, "run_attempt": 2}
+                jobs = [*successful_jobs(), publish]
+                self.assertEqual(validate_run(run, jobs, "owner/repo", "456"), 1)
+                for invalid in (
+                    jobs[:-1], jobs + [{**publish, "name": "check"}],
+                    [{**jobs[0], "conclusion": stopped}, *jobs[1:]],
+                    [{**jobs[0], "run_attempt": 2}, *jobs[1:]],
+                    [*jobs[:-1], {**publish, "conclusion": "skipped"}],
+                ):
+                    with self.assertRaises(ValueError):
+                        validate_run(run, invalid, "owner/repo", "456")
+                with self.assertRaises(ValueError):
+                    validate_run({**run, "status": "in_progress"}, jobs, "owner/repo", "456")
+
     def test_publication_rerun_uses_original_build_attempt_but_not_superseded_results(self):
         run = {**successful_run(), "run_attempt": 2, "status": "in_progress", "conclusion": None}
         jobs = successful_jobs() + [{"name": "publish", "conclusion": None, "run_attempt": 2}]

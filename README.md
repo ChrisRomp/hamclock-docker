@@ -60,7 +60,9 @@ For testing without changing stable tags, leave `publish_stable` disabled and us
 
 Publication refuses downgrades against both published releases and version tags already in the registry. All targets are checked before any changes; floating aliases move only after version tags, with `latest` last. Registry tag updates are not atomic across resolutions.
 
-Before scheduling a new build, the watcher checks the registry. If the requested or a newer version is already present without its GitHub release, even as a single resolution-specific tag, the check fails with recovery instructions instead of rebuilding. If only publication fails, rerun the failed job or supply the original build run ID (not a publication-only run). The `promotion-ATTEMPT` artifact records previous and new digests for recovery. If rebuilding before any version tags were written, rerun all jobs so every size and its smoke tests share one attempt. Builds without retained source and digest artifacts cannot be published this way.
+Before scheduling a new build, the watcher checks the registry. Docker Build repeats the release check after acquiring the publication lock, so it skips a stable build if another run has already published the same or a newer release. If the requested or a newer version is already in the registry without its GitHub release, even as a single resolution-specific tag, the check fails with recovery instructions instead of rebuilding.
+
+If publication alone fails, is cancelled, or times out after all builds and smoke tests pass, retry publication with the original build run ID (not a publication-only run). For a failed publish job, you can also rerun the failed job. The `promotion-ATTEMPT` artifact records previous and new digests for recovery. If rebuilding before any version tags were written, rerun all jobs so every size and its smoke tests share one attempt. Builds without retained source and digest artifacts cannot be published this way.
 
 ## Updating and rollback
 

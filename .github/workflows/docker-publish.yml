@@ -38,6 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.source.outputs.tag }}
+      build_required: ${{ steps.source.outputs.build_required }}
     steps:
       - uses: actions/checkout@v7
       - name: Test release selection
@@ -62,17 +63,31 @@ jobs:
           else
             result=$(python3 scripts/ohc_release.py --output ESPHamClock.zip)
           fi
-          echo "tag=$(echo "$result" | jq -r .tag)" >> "$GITHUB_OUTPUT"
+          tag=$(echo "$result" | jq -er .tag)
+          if [ -n "$BUILD_RUN_ID" ]; then
+            build_required=false
+          elif [ "$PUBLISH_STABLE" = true ]; then
+            # Another publisher may have finished while this run waited for the lock.
+            state=$(python3 -m scripts.promote_release --tag "$tag" --check)
+            build_required=$(echo "$state" | jq -er '.update_required | booleans | tostring')
+            if [ "$build_required" = false ]; then
+              echo "Skipping $tag: the same or a newer stable release is already published." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          else
+            build_required=true
+          fi
+          echo "build_required=$build_required" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Source: $result" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
-        if: inputs.build_run_id == ''
+        if: steps.source.outputs.build_required == 'true'
         with:
           name: source-${{ github.run_attempt }}
           path: ESPHamClock.zip
           if-no-files-found: error
 
   build:
-    if: inputs.build_run_id == ''
+    if: needs.source.outputs.build_required == 'true'
     needs: source
     runs-on: ubuntu-latest
     permissions:
@@ -148,7 +163,7 @@ jobs:
           if-no-files-found: error
 
   smoke:
-    if: github.event_name != 'pull_request' && inputs.build_run_id == ''
+    if: github.event_name != 'pull_request' && needs.source.outputs.build_required == 'true'
     needs: [source, build]
     runs-on: ubuntu-latest
     strategy:

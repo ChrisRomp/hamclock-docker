@@ -61,10 +61,11 @@ def validate_run(run, jobs, repository, current_run_id):
         raise ValueError(f"Publication requires successful build and smoke jobs: {failed}")
     if str(run["id"]) != current_run_id:
         unsuccessful = {name for name, result in results.items() if result not in ("success", "skipped")}
-        publish_only_failure = (run["conclusion"] == "failure" and unsuccessful == {"publish"}
-                                and results["publish"] == "failure")
-        if run["status"] != "completed" or not (run["conclusion"] == "success" or publish_only_failure):
-            raise ValueError("Build run must succeed or fail only in publication")
+        retryable = {"failure", "cancelled", "timed_out"}
+        publish_only_stop = (run["conclusion"] in retryable and unsuccessful == {"publish"}
+                             and results["publish"] in retryable)
+        if run["status"] != "completed" or not (run["conclusion"] == "success" or publish_only_stop):
+            raise ValueError("Build run must succeed or stop only in publication")
     attempts = {latest[name]["run_attempt"] for name in expected}
     if len(attempts) != 1:
         raise ValueError("Source, builds, and smoke tests must share one attempt; rerun all jobs")
