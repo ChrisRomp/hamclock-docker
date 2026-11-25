@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Promote signed, smoke-tested GHCR candidates without rebuilding them."""
+"""Publish signed, smoke-tested GHCR builds without rebuilding them."""
 
 import argparse
 import hashlib
@@ -47,24 +47,24 @@ def validate_run(run, jobs, repository, current_run_id):
             or run["path"] not in (".github/workflows/docker-publish.yml",
                                    ".github/workflows/version-check.yml")
             or run["event"] not in ("workflow_dispatch", "schedule")):
-        raise ValueError("Candidate must come from this repository's release workflows")
+        raise ValueError("Build must come from this repository's release workflows")
     if str(run["id"]) != current_run_id and (
         run["status"] != "completed" or run["conclusion"] != "success"
     ):
-        raise ValueError("Candidate workflow run did not complete successfully")
+        raise ValueError("Build workflow run did not complete successfully")
     expected = {"source"} | {f"build ({size})" for size in RESOLUTIONS} | {
         f"smoke ({size}, {platform})" for size in RESOLUTIONS for platform in PLATFORMS
     }
     results = {job["name"].split(" / ")[-1]: job["conclusion"] for job in jobs}
     failed = sorted(name for name in expected if results.get(name) != "success")
     if failed:
-        raise ValueError(f"Candidate requires successful build and smoke jobs: {failed}")
+        raise ValueError(f"Publication requires successful build and smoke jobs: {failed}")
 
 
 def validate_index(data):
     index = json.loads(data)
     if index.get("mediaType") not in INDEX_TYPES:
-        raise ValueError("Candidate must be a multi-platform image index")
+        raise ValueError("Build must be a multi-platform image index")
     platforms = []
     for manifest in index["manifests"]:
         platform = manifest.get("platform", {})
@@ -74,7 +74,7 @@ def validate_index(data):
         platforms.append(name)
     for platform in PLATFORMS:
         if platforms.count(platform) != 1:
-            raise ValueError(f"Candidate must contain exactly one {platform} manifest")
+            raise ValueError(f"Build must contain exactly one {platform} manifest")
 
 
 class Registry:
@@ -166,7 +166,8 @@ def promote(repository, tag, run_id, target, previous_release):
     body = (
         f"Built from stable [OpenHamClock {tag}]"
         f"(https://github.com/{REPOSITORY}/releases/tag/{tag}).\n\n"
-        f"Promoted without rebuilding from [candidate run {run_id}]({run['html_url']}); "
+        "Based on the original HamClock by Elwood Downey, WB0OEW (SK).\n\n"
+        f"Published without rebuilding from [validated build {run_id}]({run['html_url']}); "
         "all three resolutions passed smoke tests on amd64, arm64, and arm/v7.\n\n"
         "| Resolution | Image digest |\n|---|---|\n"
         + "".join(f"| {size} | `{digest}` |\n" for size, (_, digest) in candidates.items())
@@ -205,7 +206,7 @@ def main():
     if version < current_version:
         raise ValueError(f"Refusing to downgrade {previous['tag_name']} to {args.tag}")
     if not re.fullmatch(r"[0-9]+", args.run_id):
-        raise ValueError("Candidate run ID must be numeric")
+        raise ValueError("Build run ID must be numeric")
     upstream = gh_json(f"repos/{REPOSITORY}/releases/tags/{args.tag}")
     source_asset(upstream)
     promote(repository, args.tag, args.run_id, os.environ["GITHUB_SHA"], previous)
