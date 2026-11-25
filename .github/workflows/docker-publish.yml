@@ -12,7 +12,7 @@ on:
         default: false
         type: boolean
       build_run_id:
-        description: "Promote an existing successful run without rebuilding (requires exact tag and publish_stable)"
+        description: "Publish a tested build without rebuilding (requires exact tag and publish_stable)"
         required: false
         type: string
   workflow_call:
@@ -55,7 +55,9 @@ jobs:
             echo '::error::Publishing an existing build requires an exact upstream_tag and publish_stable=true.'
             exit 1
           fi
-          if [ -n "$UPSTREAM_TAG" ]; then
+          if [ -n "$BUILD_RUN_ID" ]; then
+            result=$(python3 scripts/ohc_release.py --tag "$UPSTREAM_TAG")
+          elif [ -n "$UPSTREAM_TAG" ]; then
             result=$(python3 scripts/ohc_release.py --tag "$UPSTREAM_TAG" --output ESPHamClock.zip)
           else
             result=$(python3 scripts/ohc_release.py --output ESPHamClock.zip)
@@ -63,8 +65,9 @@ jobs:
           echo "tag=$(echo "$result" | jq -r .tag)" >> "$GITHUB_OUTPUT"
           echo "Source: $result" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
+        if: inputs.build_run_id == ''
         with:
-          name: source
+          name: source-${{ github.run_attempt }}
           path: ESPHamClock.zip
           if-no-files-found: error
 
@@ -84,7 +87,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
-          name: source
+          name: source-${{ github.run_attempt }}
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4.4.1
       - uses: docker/login-action@v4.1.0
@@ -124,7 +127,8 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           set -eu
-          docker buildx imagetools inspect "$TAG" --raw > index.json
+          ref="${TAG%:*}@${DIGEST}"
+          docker buildx imagetools inspect "$ref" --raw > index.json
           for platform in 'linux/amd64' 'linux/arm64' 'linux/arm/v7'; do
             os=${platform%%/*}
             arch=${platform#*/}
@@ -133,8 +137,15 @@ jobs:
             jq -e --arg os "$os" --arg arch "$arch" --arg variant "$variant" \
               '[.manifests[] | select(.platform.os == $os and .platform.architecture == $arch and (if $variant == "" then true else .platform.variant == $variant end))] | length == 1' index.json > /dev/null
           done
-          cosign sign --yes "${TAG%@*}@${DIGEST}"
+          cosign sign --yes "$ref"
+          printf '%s\n' "$DIGEST" > digest.txt
           echo "Build: \`$TAG\` (\`$DIGEST\`)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: github.event_name != 'pull_request'
+        with:
+          name: index-${{ needs.source.outputs.tag }}-${{ matrix.resolution }}-${{ github.run_attempt }}
+          path: digest.txt
+          if-no-files-found: error
 
   smoke:
     if: github.event_name != 'pull_request' && inputs.build_run_id == ''
@@ -165,6 +176,9 @@ jobs:
             echo '::warning::Public backend sample data was unavailable; see backend-error.log.'
             echo 'Public backend sample data was unavailable.' >> "$GITHUB_STEP_SUMMARY"
           fi
+      - uses: actions/download-artifact@v8
+        with:
+          name: index-${{ needs.source.outputs.tag }}-${{ matrix.resolution }}-${{ github.run_attempt }}
       - name: Smoke test
         env:
           REPOSITORY: ${{ github.repository }}
@@ -173,13 +187,15 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
         run: |
           image="ghcr.io/$(echo "$REPOSITORY" | tr '[:upper:]' '[:lower:]')"
-          export IMAGE="${image}:candidate-${VERSION}-${RESOLUTION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          digest=$(cat digest.txt)
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::Invalid build digest"; exit 1; }
+          export IMAGE="${image}@${digest}"
           bash scripts/smoke-test.sh
       - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: smoke-${{ matrix.resolution }}-${{ strategy.job-index }}
+          name: smoke-${{ matrix.resolution }}-${{ strategy.job-index }}-${{ github.run_attempt }}
           path: smoke-artifacts/
           if-no-files-found: warn
 
@@ -199,9 +215,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v8
-        with:
-          name: source
       - uses: docker/setup-buildx-action@v4.4.1
       - uses: docker/login-action@v4.1.0
         with:
@@ -219,6 +232,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: promotion
+          name: promotion-${{ github.run_attempt }}
           path: promotion.json
           if-no-files-found: warn

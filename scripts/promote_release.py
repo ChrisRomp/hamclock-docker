@@ -48,17 +48,27 @@ def validate_run(run, jobs, repository, current_run_id):
                                    ".github/workflows/version-check.yml")
             or run["event"] not in ("workflow_dispatch", "schedule")):
         raise ValueError("Build must come from this repository's release workflows")
-    if str(run["id"]) != current_run_id and (
-        run["status"] != "completed" or run["conclusion"] != "success"
-    ):
-        raise ValueError("Build workflow run did not complete successfully")
+    # A publication-only rerun has no new build jobs. Keep the latest execution
+    # of each job, not the attempt number of the workflow currently publishing.
+    latest = {job["name"].split(" / ")[-1]: job
+              for job in sorted(jobs, key=lambda job: job["run_attempt"])}
     expected = {"source"} | {f"build ({size})" for size in RESOLUTIONS} | {
         f"smoke ({size}, {platform})" for size in RESOLUTIONS for platform in PLATFORMS
     }
-    results = {job["name"].split(" / ")[-1]: job["conclusion"] for job in jobs}
+    results = {name: job["conclusion"] for name, job in latest.items()}
     failed = sorted(name for name in expected if results.get(name) != "success")
     if failed:
         raise ValueError(f"Publication requires successful build and smoke jobs: {failed}")
+    if str(run["id"]) != current_run_id:
+        unsuccessful = {name for name, result in results.items() if result not in ("success", "skipped")}
+        publish_only_failure = (run["conclusion"] == "failure" and unsuccessful == {"publish"}
+                                and results["publish"] == "failure")
+        if run["status"] != "completed" or not (run["conclusion"] == "success" or publish_only_failure):
+            raise ValueError("Build run must succeed or fail only in publication")
+    attempts = {latest[name]["run_attempt"] for name in expected}
+    if len(attempts) != 1:
+        raise ValueError("Source, builds, and smoke tests must share one attempt; rerun all jobs")
+    return attempts.pop()
 
 
 def validate_index(data):
@@ -103,10 +113,26 @@ class Registry:
                 return None
             raise
 
+    def newest_version(self):
+        listing = json.loads(subprocess.check_output(
+            ["skopeo", "list-tags", f"docker://ghcr.io/{self.repository}"], text=True,
+        ))
+        versions = []
+        for alias in listing["Tags"]:
+            version, _, suffix = alias.partition("-")
+            if (not suffix or suffix in RESOLUTIONS) and PUBLISHED_TAG.fullmatch(version):
+                versions.append(version)
+        return max(versions, key=published_version, default=None)
+
 
 def promotion_plan(tag, candidates, registry):
+    # Version tags are immutable and are written before any floating alias.
+    # They survive even when creating the GitHub release fails.
+    newest = registry.newest_version()
+    if newest and published_version(newest) > version_key(tag):
+        raise ValueError(f"Refusing to downgrade registry version {newest} to {tag}")
     plan = []
-    for size, (_, digest) in candidates.items():
+    for size, digest in candidates.items():
         tags = [f"{tag}-{size}"]
         if size == RESOLUTIONS[0]:
             tags.append(tag)
@@ -118,19 +144,27 @@ def promotion_plan(tag, candidates, registry):
                          "previous": previous[1] if previous else None})
     for alias, size in [(size, size) for size in RESOLUTIONS] + [("latest", RESOLUTIONS[0])]:
         previous = registry.manifest(alias, optional=True)
-        plan.append({"tag": alias, "digest": candidates[size][1],
+        plan.append({"tag": alias, "digest": candidates[size],
                      "previous": previous[1] if previous else None})
     return plan
 
 
-def promote(repository, tag, run_id, target, previous_release):
+def promote(repository, tag, run_id, target, previous_release, directory):
     run = gh_json(f"repos/{repository}/actions/runs/{run_id}")
     pages = gh_json("--paginate", "--slurp",
-                    f"repos/{repository}/actions/runs/{run_id}/attempts/"
-                    f"{run['run_attempt']}/jobs?per_page=100")
-    validate_run(run, [job for page in pages for job in page["jobs"]],
-                 repository, os.environ.get("GITHUB_RUN_ID", ""))
+                    f"repos/{repository}/actions/runs/{run_id}/jobs?filter=all&per_page=100")
+    attempt = validate_run(run, [job for page in pages for job in page["jobs"]],
+                           repository, os.environ.get("GITHUB_RUN_ID", ""))
     subprocess.run(["git", "merge-base", "--is-ancestor", run["head_sha"], target], check=True)
+    source_name = f"source-{attempt}"
+    indexes = {size: f"index-{tag}-{size}-{attempt}" for size in RESOLUTIONS}
+    command = ["gh", "run", "download", run_id, "--repo", repository, "--dir", str(directory)]
+    for name in (source_name, *indexes.values()):
+        command.extend(["--name", name])
+    subprocess.run(command, check=True)
+    source = directory / source_name / "ESPHamClock.zip"
+    if not source.is_file() or source.stat().st_size == 0:
+        raise ValueError(f"Missing tested source archive from run {run_id} attempt {attempt}")
     registry = Registry(repository)
     image = f"ghcr.io/{repository.lower()}"
     identity = (
@@ -138,16 +172,20 @@ def promote(repository, tag, run_id, target, previous_release):
         rf"(docker-publish|version-check)\.yml@refs/heads/{re.escape(run['head_branch'])}"
     )
     candidates = {}
-    for size in RESOLUTIONS:
-        candidate = f"candidate-{tag}-{size}-{run_id}-{run['run_attempt']}"
-        data, digest = registry.manifest(candidate)
+    for size, name in indexes.items():
+        digest = (directory / name / "digest.txt").read_text().strip()
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
+            raise ValueError(f"Invalid image digest in build artifact {name}")
+        data, actual = registry.manifest(digest)
+        if actual != digest:
+            raise ValueError(f"Registry returned {actual} instead of tested digest {digest}")
         validate_index(data)
         subprocess.run(
             ["cosign", "verify", "--certificate-identity-regexp", f"^{identity}$",
              "--certificate-oidc-issuer", "https://token.actions.githubusercontent.com",
              f"{image}@{digest}"], check=True, stdout=subprocess.DEVNULL,
         )
-        candidates[size] = (candidate, digest)
+        candidates[size] = digest
 
     # Preflight every target before changing any tag; keep rollback digests in the run.
     plan = promotion_plan(tag, candidates, registry)
@@ -170,20 +208,19 @@ def promote(repository, tag, run_id, target, previous_release):
         f"Published without rebuilding from [validated build {run_id}]({run['html_url']}); "
         "all three resolutions passed smoke tests on amd64, arm64, and arm/v7.\n\n"
         "| Resolution | Image digest |\n|---|---|\n"
-        + "".join(f"| {size} | `{digest}` |\n" for size, (_, digest) in candidates.items())
+        + "".join(f"| {size} | `{digest}` |\n" for size, digest in candidates.items())
     )
     if previous_release is None or previous_release["tag_name"] != tag:
-        with tempfile.TemporaryDirectory() as directory:
-            notes = Path(directory) / "notes.md"
-            notes.write_text(body)
-            command = [
-                "gh", "release", "create", tag, "ESPHamClock.zip", "--repo", repository,
-                "--target", target, "--title", f"OpenHamClock {tag}", "--latest",
-                "--generate-notes", "--notes-file", str(notes),
-            ]
-            if previous_release:
-                command += ["--notes-start-tag", previous_release["tag_name"]]
-            subprocess.run(command, check=True)
+        notes = directory / "notes.md"
+        notes.write_text(body)
+        command = [
+            "gh", "release", "create", tag, str(source), "--repo", repository,
+            "--target", target, "--title", f"OpenHamClock {tag}", "--latest",
+            "--generate-notes", "--notes-file", str(notes),
+        ]
+        if previous_release:
+            command += ["--notes-start-tag", previous_release["tag_name"]]
+        subprocess.run(command, check=True)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
             summary.write(body + "\n\nStable tags and version tags verified.\n")
@@ -209,7 +246,8 @@ def main():
         raise ValueError("Build run ID must be numeric")
     upstream = gh_json(f"repos/{REPOSITORY}/releases/tags/{args.tag}")
     source_asset(upstream)
-    promote(repository, args.tag, args.run_id, os.environ["GITHUB_SHA"], previous)
+    with tempfile.TemporaryDirectory() as directory:
+        promote(repository, args.tag, args.run_id, os.environ["GITHUB_SHA"], previous, Path(directory))
 
 
 if __name__ == "__main__":
