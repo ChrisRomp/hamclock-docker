@@ -11,19 +11,26 @@ class ReleaseSelectionTests(unittest.TestCase):
     def test_selects_numerically_and_keeps_packaging_revision(self):
         releases = [release("v4.9.9"), release("v4.10.0"), release("v4.10.2"),
                     release("v4.11b01.0"), release("v5.0.0", draft=True)]
-        self.assertEqual(select_release(releases, "stable")["tag_name"], "v4.10.2")
+        self.assertEqual(select_release(releases)["tag_name"], "v4.10.2")
 
     def test_beta_classification_uses_tag_not_github_flag(self):
         releases = [release("v4.34b02.0"), release("v4.34b10.0", prerelease=True),
-                    release("v4.34.0")]
-        self.assertEqual(select_release(releases, "beta")["tag_name"], "v4.34b10.0")
-        self.assertEqual(select_release(releases, "stable")["tag_name"], "v4.34.0")
+                    release("v4.34.0"), release("v4.35.0", prerelease=True)]
+        self.assertEqual(select_release(releases)["tag_name"], "v4.34.0")
 
     def test_invalid_tags_and_empty_channel_fail(self):
         with self.assertRaises(ValueError):
             version_key("v4.33;echo unsafe")
         with self.assertRaises(ValueError):
-            select_release([release("v4.33b01.0")], "stable")
+            select_release([release("v4.33b01.0")])
+
+    def test_exact_beta_draft_and_prerelease_are_rejected(self):
+        for item in (release("v4.34b01.0"), release("v4.34.0", draft=True),
+                     release("v4.34.0", prerelease=True)):
+            with self.subTest(item=item), self.assertRaises(ValueError):
+                source_asset(item)
+        with self.assertRaises(ValueError):
+            version_key("v4.34b01.0")
 
     def test_exact_source_asset_and_digest_required(self):
         asset = {"name": "ESPHamClock-V4.33.zip", "digest": "sha256:" + "a" * 64}

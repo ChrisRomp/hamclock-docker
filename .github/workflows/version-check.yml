@@ -8,22 +8,46 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: check-openhamclock-releases
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      update_required: ${{ steps.release.outputs.update_required }}
     steps:
       - uses: actions/checkout@v7
-      - name: Find current releases
+      - name: Find new stable release
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          stable=$(python3 scripts/ohc_release.py --channel stable)
-          beta=$(python3 scripts/ohc_release.py --channel beta)
+          stable=$(python3 scripts/ohc_release.py)
+          tag=$(echo "$stable" | jq -r .tag)
+          result=$(python3 -m scripts.promote_release --tag "$tag" --check)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "update_required=$(echo "$result" | jq -r .update_required)" >> "$GITHUB_OUTPUT"
           {
             echo '## OpenHamClock releases'
-            echo "- Stable: $(echo "$stable" | jq -r .tag)"
-            echo "- Beta: $(echo "$beta" | jq -r .tag)"
-            echo
-            echo 'Run Docker Build manually to publish an opt-in candidate. Stable tags are not changed.'
+            echo "- Upstream stable: $tag"
+            echo "- Published here: $(echo "$result" | jq -r .current)"
+            echo "- Build and publish required: $(echo "$result" | jq -r .update_required)"
+            echo 'Betas and prereleases are not built or published.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    needs: check
+    if: needs.check.outputs.update_required == 'true'
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+      id-token: write
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      upstream_tag: ${{ needs.check.outputs.tag }}
+      publish_stable: true

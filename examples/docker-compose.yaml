@@ -4,9 +4,9 @@ services:
     # - latest, 1600x960 (default resolution)
     # - 2400x1440
     # - 3200x1920
-    # OpenHamClock candidate tags are opt-in; see the workflow summary and README.
+    # Pin a version (for example v4.33.0) to opt out of automatic stable updates.
     image: ghcr.io/chrisromp/hamclock-docker:latest
-    # For OpenHamClock candidates only; legacy images use their existing command.
+    # Override the default public Open HamClock Backend if needed.
     # environment:
     #   BACKEND_HOST: ohb.hamclock.app:80
     ports:

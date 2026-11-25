@@ -4,7 +4,7 @@ A Docker distribution of [OpenHamClock](https://github.com/openhamclock/hamclock
 
 ![HamClock screenshot](images/hamclock.png)
 
-The existing GHCR stable images are still the older HamClock build using `hamclock.com`; they are not automatically replaced by the OpenHamClock candidates. OpenHamClock publishes its own [Docker image and manager](https://github.com/openhamclock/hamclock/tree/main/docker), which may be preferable for new installations. This project retains the existing GHCR image name, resolution tags, settings volume and command conventions.
+Stable GHCR images use the OpenHamClock frontend and public Open HamClock Backend. OpenHamClock also publishes its own [Docker image and manager](https://github.com/openhamclock/hamclock/tree/main/docker), which may be preferable for new installations. This project retains the existing GHCR image name, resolution tags, settings volume and command conventions, including support for 32-bit ARM.
 
 ## Run a published image
 
@@ -24,11 +24,13 @@ The current stable resolution tags are:
 | 2400x1440 | `2400x1440`, version-`2400x1440` |
 | 3200x1920 | `3200x1920`, version-`3200x1920` |
 
-These are separate, fixed-resolution images, not runtime-resizable displays. The existing stable images support `linux/amd64`, `linux/arm64` and `linux/arm/v7`. A release or tag in GitHub does not necessarily mean a corresponding image was published.
+These are separate, fixed-resolution images, not runtime-resizable displays. All three sizes support `linux/amd64`, `linux/arm64` and `linux/arm/v7`. For example, `v4.33.0` and `v4.33.0-1600x960` pin the default size; `v4.33.0-2400x1440` and `v4.33.0-3200x1920` pin the larger sizes. Version tags are never overwritten.
+
+Starting with v4.33.0, GitHub releases are created only after the corresponding image tags have been published and verified. Older GitHub releases did not necessarily have matching container images.
 
 ## Test an OpenHamClock candidate
 
-Candidate builds are opt-in and do **not** move `latest`, the resolution aliases, or existing version tags. The manually dispatched Docker Build workflow publishes unique tags of the form:
+Candidate builds are opt-in and do **not** move `latest`, the resolution aliases, or existing version tags. Run Docker Build manually with `publish_stable` disabled to publish unique tags of the form:
 
 ```text
 ghcr.io/chrisromp/hamclock-docker:candidate-v4.33.0-1600x960-RUN_ID-ATTEMPT
@@ -48,7 +50,7 @@ docker run --rm -v hamclock-candidate-data:/destination -v "$(pwd):/backup:ro" a
 
 Use the candidate tag and copy in a separate Compose project and different host ports, or stop the existing container first. Do not mount the same writable settings volume in both instances. Keep the original backup for rollback.
 
-The candidate defaults to the public [Open HamClock Backend](https://github.com/openhamclock/open-hamclock-backend) at `ohb.hamclock.app:80`. Configure a different host and port with:
+OpenHamClock images default to the public [Open HamClock Backend](https://github.com/openhamclock/open-hamclock-backend) at `ohb.hamclock.app:80`. Configure a different host and port with:
 
 ```yaml
 environment:
@@ -66,13 +68,21 @@ python3 scripts/ohc_release.py --output ESPHamClock.zip
 docker compose up --build -d
 ```
 
-Use `--tag v4.33.0` to pin an exact release, or `--channel beta` to select the newest beta. The script verifies the GitHub release asset's SHA-256; it does not fall back to an unversioned download. Set `HAMCLOCK_RESOLUTION` in the source Compose file to one of `800x480`, `1600x960`, `2400x1440`, or `3200x1920` before building.
+Use `--tag v4.33.0` to pin an exact stable release. Betas and prereleases are rejected, even when upstream marks a beta as a normal GitHub release. The script verifies the GitHub release asset's SHA-256; it does not fall back to an unversioned download. Set `HAMCLOCK_RESOLUTION` in the source Compose file to one of `800x480`, `1600x960`, `2400x1440`, or `3200x1920` before building.
+
+## Release automation
+
+On `main`, Check OpenHamClock releases runs every six hours. A newer stable OHC release automatically builds all three sizes, signs their multi-architecture candidate indexes, and runs all nine size/platform smoke tests before promotion. It then updates `latest`, the three resolution aliases, and new version tags, and creates a GitHub release with generated notes and the verified source archive. Betas are neither built nor published. No personal access token or follow-on tag-push trigger is needed.
+
+To promote an already-tested candidate without rebuilding, manually run Docker Build on the branch containing these workflows, set `upstream_tag` to its exact stable version, enable `publish_stable`, and supply its `candidate_run_id`. Promotion verifies that the original workflow succeeded, every build and smoke job passed, all architectures are present, and the index signatures match this repository's release workflows. The original build commit must be an ancestor of the publishing commit.
+
+Promotion preserves the tested index digests and refuses downgrades or conflicting version tags. All targets are checked before any changes; floating aliases move only after version tags, with `latest` last. Registry tag updates are not atomic across resolutions. If publication fails partway through, rerun promotion against the same candidate; the `promotion` artifact records previous and new digests for recovery. Use the original build run ID, not a promotion-only run. If rebuilding via an Actions rerun, rerun all jobs so every size has the same run attempt.
 
 ## Updating and rollback
 
 Back up settings first. For image-based deployments, update the image tag in Compose if necessary, then run `docker compose pull && docker compose up -d`. Updating inside the HamClock web UI does not persist reliably across container recreation.
 
-If a candidate does not work, stop it and restore the original deployment and saved settings. The legacy `v4.25` image and `v4.25-2400x1440` / `v4.25-3200x1920` tags correspond to the existing floating images observed during the migration assessment; use the matching resolution or a previously recorded digest. Do not assume `v4.27` was published as a container image. Stable promotion of OpenHamClock images is a separate decision.
+If an update does not work, stop it and restore the original deployment and saved settings. The legacy `v4.25` image and `v4.25-2400x1440` / `v4.25-3200x1920` tags correspond to the pre-migration floating images; use the matching resolution or a previously recorded digest. Those legacy tags remain unchanged. Do not assume `v4.27` was published as a container image.
 
 ## Moving to the upstream manager
 

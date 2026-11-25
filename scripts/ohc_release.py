@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Select and download a verified OpenHamClock release source archive."""
+"""Select and download a verified stable OpenHamClock release source archive."""
 
 import argparse
 import hashlib
@@ -11,41 +11,37 @@ import tempfile
 from pathlib import Path
 
 REPOSITORY = "openhamclock/hamclock"
-TAG = re.compile(r"^v(\d+)\.(\d+)(?:b(\d+))?\.(\d+)$")
+TAG = re.compile(r"^v(\d+)\.(\d+)\.(\d+)$")
 
 
 def version_key(tag):
     match = TAG.fullmatch(tag)
     if not match:
-        raise ValueError(f"Invalid OpenHamClock release tag: {tag}")
-    major, minor, beta, revision = match.groups()
-    return int(major), int(minor), int(beta) if beta is not None else -1, int(revision)
+        raise ValueError(f"Invalid stable OpenHamClock release tag: {tag}")
+    return tuple(int(part) for part in match.groups())
 
 
-def select_release(releases, channel):
+def select_release(releases):
     candidates = []
     for release in releases:
         tag = release.get("tag_name", "")
         match = TAG.fullmatch(tag)
-        if release.get("draft") or not match:
-            continue
-        is_beta = match.group(3) is not None
-        if (channel == "beta") != is_beta:
-            continue
-        if not is_beta and release.get("prerelease"):
+        if release.get("draft") or release.get("prerelease") or not match:
             continue
         candidates.append(release)
     if not candidates:
-        raise ValueError(f"No published {channel} releases found")
+        raise ValueError("No published stable releases found")
     return max(candidates, key=lambda release: version_key(release["tag_name"]))
 
 
 def source_asset(release):
+    if release.get("draft") or release.get("prerelease"):
+        raise ValueError("Only published stable releases are supported")
     match = TAG.fullmatch(release["tag_name"])
     if not match:
-        raise ValueError(f"Invalid OpenHamClock release tag: {release['tag_name']}")
-    major, minor, beta, _ = match.groups()
-    name = f"ESPHamClock-V{major}.{minor}{'b' + beta if beta is not None else ''}.zip"
+        raise ValueError(f"Invalid stable OpenHamClock release tag: {release['tag_name']}")
+    major, minor, _ = match.groups()
+    name = f"ESPHamClock-V{major}.{minor}.zip"
     assets = [asset for asset in release.get("assets", []) if asset.get("name") == name]
     if len(assets) != 1:
         raise ValueError(f"Expected one {name} asset, found {len(assets)}")
@@ -61,8 +57,7 @@ def gh_json(*args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--channel", choices=("stable", "beta"), default="stable")
-    parser.add_argument("--tag", help="Exact published OHC release tag")
+    parser.add_argument("--tag", help="Exact published stable OHC release tag")
     parser.add_argument("--output", type=Path, help="Download and verify the source archive")
     args = parser.parse_args()
 
@@ -73,7 +68,7 @@ def main():
             raise ValueError(f"Release {args.tag} is not published")
     else:
         pages = gh_json("--paginate", "--slurp", f"repos/{REPOSITORY}/releases?per_page=100")
-        release = select_release([item for page in pages for item in page], args.channel)
+        release = select_release([item for page in pages for item in page])
     name, expected = source_asset(release)
     if args.output:
         with tempfile.TemporaryDirectory() as directory:
