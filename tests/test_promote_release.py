@@ -1,0 +1,318 @@
+import copy
+import io
+import json
+import os
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import Mock, patch
+from urllib.error import HTTPError
+
+from scripts.promote_release import (
+    PLATFORMS,
+    RESOLUTIONS,
+    Registry,
+    latest_project_release,
+    main,
+    promote,
+    promotion_plan,
+    published_version,
+    validate_index,
+    validate_run,
+)
+
+
+def successful_run():
+    return {
+        "id": 123,
+        "head_repository": {"full_name": "owner/repo"},
+        "path": ".github/workflows/docker-publish.yml",
+        "event": "workflow_dispatch",
+        "status": "completed",
+        "conclusion": "success",
+    }
+
+
+def successful_jobs():
+    names = ["source"] + [f"build ({size})" for size in RESOLUTIONS] + [
+        f"smoke ({size}, {platform})" for size in RESOLUTIONS for platform in PLATFORMS
+    ]
+    return [{"name": name, "conclusion": "success", "run_attempt": 1} for name in names]
+
+
+class PromotionTests(unittest.TestCase):
+    def test_requires_all_builds_and_smoke_tests_even_when_run_succeeded(self):
+        run = successful_run()
+        jobs = successful_jobs()
+        validate_run(run, jobs, "owner/repo", "456")
+        failed_jobs = copy.deepcopy(jobs)
+        failed_jobs[-1]["conclusion"] = "failure"
+        for invalid_jobs in (jobs[:-1], failed_jobs):
+            with self.assertRaises(ValueError):
+                validate_run(run, invalid_jobs, "owner/repo", "456")
+        with self.assertRaises(ValueError):
+            validate_run(run, [{"name": "publish", "conclusion": "success", "run_attempt": 1}],
+                         "owner/repo", "456")
+
+    def test_rejects_unsuccessful_or_untrusted_previous_run(self):
+        for change in (
+            {"conclusion": "failure"}, {"status": "in_progress"},
+            {"event": "pull_request"}, {"path": ".github/workflows/other.yml"},
+            {"head_repository": {"full_name": "other/repo"}},
+        ):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                validate_run({**successful_run(), **change}, successful_jobs(), "owner/repo", "456")
+
+    def test_current_reusable_run_can_publish_after_required_jobs_finish(self):
+        run = {**successful_run(), "status": "in_progress", "conclusion": None,
+               "event": "schedule", "path": ".github/workflows/version-check.yml"}
+        jobs = [{**job, "name": "release / " + job["name"]} for job in successful_jobs()]
+        validate_run(run, jobs, "owner/repo", "123")
+        jobs[-1]["conclusion"] = None
+        with self.assertRaises(ValueError):
+            validate_run(run, jobs, "owner/repo", "123")
+
+    def test_retry_accepts_only_a_publication_failure_with_complete_test_evidence(self):
+        run = {**successful_run(), "conclusion": "failure"}
+        jobs = successful_jobs() + [{"name": "publish", "conclusion": "failure", "run_attempt": 1}]
+        self.assertEqual(validate_run(run, jobs, "owner/repo", "456"), 1)
+        extra_failure = {"name": "check", "conclusion": "failure", "run_attempt": 1}
+        with self.assertRaises(ValueError):
+            validate_run(run, jobs + [extra_failure], "owner/repo", "456")
+        with self.assertRaises(ValueError):
+            validate_run(run, jobs[1:], "owner/repo", "456")
+
+    def test_retry_after_cancel_or_timeout_requires_only_publish_to_have_stopped(self):
+        for overall, stopped in (("cancelled", "cancelled"), ("timed_out", "timed_out"),
+                                 ("failure", "timed_out")):
+            with self.subTest(overall=overall, publish=stopped):
+                run = {**successful_run(), "conclusion": overall}
+                publish = {"name": "publish", "conclusion": stopped, "run_attempt": 2}
+                jobs = [*successful_jobs(), publish]
+                self.assertEqual(validate_run(run, jobs, "owner/repo", "456"), 1)
+                for invalid in (
+                    jobs[:-1], jobs + [{**publish, "name": "check"}],
+                    [{**jobs[0], "conclusion": stopped}, *jobs[1:]],
+                    [{**jobs[0], "run_attempt": 2}, *jobs[1:]],
+                    [*jobs[:-1], {**publish, "conclusion": "skipped"}],
+                ):
+                    with self.assertRaises(ValueError):
+                        validate_run(run, invalid, "owner/repo", "456")
+                with self.assertRaises(ValueError):
+                    validate_run({**run, "status": "in_progress"}, jobs, "owner/repo", "456")
+
+    def test_publication_rerun_uses_original_build_attempt_but_not_superseded_results(self):
+        run = {**successful_run(), "run_attempt": 2, "status": "in_progress", "conclusion": None}
+        jobs = successful_jobs() + [{"name": "publish", "conclusion": None, "run_attempt": 2}]
+        self.assertEqual(validate_run(run, jobs, "owner/repo", "123"), 1)
+        for result in ("failure", "success"):
+            rerun = {**jobs[1], "run_attempt": 2, "conclusion": result}
+            with self.subTest(result=result), self.assertRaises(ValueError):
+                validate_run(run, [rerun, *jobs], "owner/repo", "123")
+
+    def test_all_architectures_are_required_and_attestations_are_allowed(self):
+        index = {"mediaType": "application/vnd.oci.image.index.v1+json", "manifests": [
+            {"platform": {"os": "linux", "architecture": "amd64"}},
+            {"platform": {"os": "linux", "architecture": "arm64"}},
+            {"platform": {"os": "linux", "architecture": "arm", "variant": "v7"}},
+            {"platform": {"os": "unknown", "architecture": "unknown"}},
+        ]}
+        validate_index(json.dumps(index))
+        index["manifests"][2]["platform"]["variant"] = "v6"
+        with self.assertRaises(ValueError):
+            validate_index(json.dumps(index))
+        index["manifests"][2]["platform"]["variant"] = "v7"
+        index["manifests"].append(index["manifests"][0])
+        with self.assertRaises(ValueError):
+            validate_index(json.dumps(index))
+
+    def test_exact_indexes_are_reused_and_latest_moves_last(self):
+        registry = Mock()
+        registry.newest_version.return_value = None
+        registry.manifest.return_value = None
+        candidates = {size: "sha256:" + str(i) * 64
+                      for i, size in enumerate(RESOLUTIONS)}
+        plan = promotion_plan("v4.33.0", candidates, registry)
+        actual = {item["tag"]: item["digest"] for item in plan}
+        expected = {
+            "latest": candidates["1600x960"], "v4.33.0": candidates["1600x960"],
+            **candidates,
+            **{f"v4.33.0-{size}": candidates[size] for size in RESOLUTIONS},
+        }
+        self.assertEqual(actual, expected)
+        self.assertEqual(plan[-1]["tag"], "latest")
+
+    def test_existing_version_is_idempotent_but_cannot_be_overwritten(self):
+        digest = "sha256:" + "a" * 64
+        registry = Mock()
+        registry.newest_version.return_value = "v4.33.0"
+        candidates = dict.fromkeys(RESOLUTIONS, digest)
+        registry.manifest.return_value = (b"", digest)
+        self.assertTrue(all(item["previous"] == item["digest"]
+                            for item in promotion_plan("v4.33.0", candidates, registry)))
+        registry.manifest.side_effect = lambda tag, optional: (
+            (b"", "sha256:" + "b" * 64) if tag == "v4.33.0-3200x1920" else None
+        )
+        with self.assertRaisesRegex(ValueError, "immutable version tag"):
+            promotion_plan("v4.33.0", candidates, registry)
+
+    @patch("scripts.promote_release.subprocess.check_output")
+    def test_partial_newer_publication_sets_registry_floor_before_aliases_move(self, output):
+        registry = Registry.__new__(Registry)
+        registry.repository = "owner/repo"
+        output.return_value = json.dumps({"Tags": [
+            "latest", "v4.25", "v4.9.0", "v4.33.0", "v4.34.0-2400x1440",
+            "candidate-v4.36.0-1600x960-123-1", "v5.0b01.0", "v7.0.0-beta",
+        ]})
+        self.assertEqual(registry.newest_version(), "v4.34.0")
+        with patch.object(registry, "manifest") as manifest:
+            with self.assertRaisesRegex(ValueError, "downgrade registry version v4.34.0"):
+                promotion_plan("v4.33.0", {}, registry)
+            manifest.assert_not_called()
+
+    @patch("scripts.promote_release.subprocess.run")
+    @patch("scripts.promote_release.Registry")
+    @patch("scripts.promote_release.gh_json")
+    def test_retry_uses_recorded_digests_and_release_archive_from_original_attempt(
+        self, gh_json, registry_class, execute
+    ):
+        tag, run_id = "v4.33.0", "123"
+        jobs = successful_jobs() + [{"name": "publish", "conclusion": "failure", "run_attempt": 2}]
+        run = {**successful_run(), "run_attempt": 2, "conclusion": "failure", "head_sha": "build",
+               "head_branch": "main", "html_url": "https://github.com/owner/repo/actions/runs/123"}
+        gh_json.side_effect = [run, [{"jobs": jobs}]]
+        indexes = {size: "sha256:" + str(i) * 64 for i, size in enumerate(RESOLUTIONS)}
+        registry = registry_class.return_value
+        registry.newest_version.return_value = tag
+        aliases = {"latest": indexes[RESOLUTIONS[0]], tag: indexes[RESOLUTIONS[0]], **indexes,
+                   **{f"{tag}-{size}": digest for size, digest in indexes.items()}}
+        data = json.dumps({"mediaType": "application/vnd.oci.image.index.v1+json", "manifests": [
+            {"platform": dict(zip(("os", "architecture", "variant"), platform.split("/")))}
+            for platform in PLATFORMS
+        ]}).encode()
+
+        def manifest(ref, optional=False):
+            # Any lookup of a mutable staging tag fails this test.
+            return data, ref if ref in indexes.values() else aliases[ref]
+
+        registry.manifest.side_effect = manifest
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp)
+            source = directory / "source-1" / "ESPHamClock.zip"
+
+            def command(args, **kwargs):
+                if args[:3] == ["gh", "run", "download"]:
+                    self.assertEqual(args[3], run_id)
+                    self.assertEqual(args[args.index("--dir") + 1], temp)
+                    self.assertIn("source-1", args)
+                    source.parent.mkdir()
+                    source.write_bytes(b"original source archive")
+                    for size, digest in indexes.items():
+                        name = f"index-{tag}-{size}-1"
+                        self.assertIn(name, args)
+                        (directory / name).mkdir()
+                        (directory / name / "digest.txt").write_text(digest + "\n")
+                elif args[:3] == ["gh", "release", "create"]:
+                    self.assertEqual(Path(args[4]).read_bytes(), b"original source archive")
+                elif args[0] not in ("cosign", "git"):
+                    self.fail(f"Unexpected command {args}")
+
+            execute.side_effect = command
+            original = Path.cwd()
+            try:
+                os.chdir(directory)
+                Path("ESPHamClock.zip").write_bytes(b"different source in publishing workspace")
+                with patch.dict(os.environ, {"GITHUB_RUN_ID": "456", "GITHUB_STEP_SUMMARY": ""}):
+                    promote("owner/repo", tag, run_id, "publisher", {"tag_name": "v4.27"}, directory)
+            finally:
+                os.chdir(original)
+            calls = [call.args[0] for call in execute.call_args_list]
+            self.assertEqual({args[-1] for args in calls if args[0] == "cosign"},
+                             {f"ghcr.io/owner/repo@{digest}" for digest in indexes.values()})
+            self.assertTrue(any(args[:3] == ["gh", "release", "create"] for args in calls))
+
+    @patch("scripts.promote_release.gh_json")
+    def test_release_comparison_includes_legacy_tags_and_ignores_betas(self, gh_json):
+        gh_json.return_value = [[
+            {"tag_name": tag, "draft": False, "prerelease": False}
+            for tag in ("v4.9", "v4.27", "v4.33.0", "v4.34b01.0")
+        ], [{"tag_name": "v4.34.0", "draft": False, "prerelease": True}]]
+        self.assertEqual(latest_project_release("owner/repo")["tag_name"], "v4.33.0")
+        self.assertLess(published_version("v4.27"), published_version("v4.33.0"))
+        with self.assertRaises(ValueError):
+            published_version("v4.34b01.0")
+
+    @patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"})
+    @patch("scripts.promote_release.latest_project_release")
+    @patch("scripts.promote_release.subprocess.check_output")
+    def test_check_blocks_rebuilding_partially_published_versions(self, output, latest):
+        registry = Registry.__new__(Registry)
+        registry.repository = "owner/repo"
+        aliases = ["v4.34.0", *[f"v4.34.0-{size}" for size in RESOLUTIONS],
+                   "v4.35.0-2400x1440"]
+        with patch("scripts.promote_release.Registry", return_value=registry), \
+                patch("sys.argv", ["promote", "--tag", "v4.34.0", "--check"]):
+            for previous in (None, {"tag_name": "v4.33.0"}):
+                latest.return_value = previous
+                for alias in aliases:
+                    output.return_value = json.dumps({"Tags": ["latest", "v4.25", alias]})
+                    with self.subTest(previous=previous, alias=alias), \
+                            patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                        with self.assertRaisesRegex(ValueError, "original build_run_id") as error:
+                            main()
+                        self.assertIn("upstream_tag", str(error.exception))
+                        self.assertIn("publish_stable=true", str(error.exception))
+                        self.assertEqual(stdout.getvalue(), "")
+
+    @patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"})
+    @patch("scripts.promote_release.latest_project_release")
+    @patch("scripts.promote_release.subprocess.check_output")
+    def test_check_allows_new_versions_above_the_registry_floor(self, output, latest):
+        registry = Registry.__new__(Registry)
+        registry.repository = "owner/repo"
+        latest.return_value = {"tag_name": "v4.33.0"}
+        with patch("scripts.promote_release.Registry", return_value=registry), \
+                patch("sys.argv", ["promote", "--tag", "v4.34.0", "--check"]):
+            for tags in ([], ["latest", "v4.25", "v4.33.0-2400x1440",
+                              "candidate-v4.34.0-1600x960-123-1", "v4.35b01.0"]):
+                output.return_value = json.dumps({"Tags": tags})
+                with self.subTest(tags=tags), patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                    main()
+                    self.assertEqual(json.loads(stdout.getvalue()),
+                                     {"current": "v4.33.0", "update_required": True})
+
+    @patch.dict("os.environ", {"GITHUB_REPOSITORY": "owner/repo"})
+    @patch("scripts.promote_release.latest_project_release")
+    @patch("scripts.promote_release.promote")
+    @patch("scripts.promote_release.Registry")
+    def test_same_release_is_not_rebuilt_and_older_release_cannot_be_promoted(
+        self, registry, promote, latest
+    ):
+        latest.return_value = {"tag_name": "v4.33.0"}
+        for tag in ("v4.33.0", "v4.32.0"):
+            with self.subTest(tag=tag), patch("sys.argv", ["promote", "--tag", tag, "--check"]):
+                with patch("sys.stdout", new_callable=io.StringIO) as output:
+                    main()
+                self.assertFalse(json.loads(output.getvalue())["update_required"])
+        with patch("sys.argv", ["promote", "--tag", "v4.32.0", "--run-id", "123"]):
+            with self.assertRaisesRegex(ValueError, "downgrade"):
+                main()
+        registry.assert_not_called()
+        promote.assert_not_called()
+
+    @patch("scripts.promote_release.urlopen")
+    def test_missing_manifest_is_optional_but_auth_errors_are_not(self, urlopen):
+        registry = Registry.__new__(Registry)
+        registry.repository = "owner/repo"
+        registry.token = "test"
+        urlopen.side_effect = HTTPError("https://ghcr.io", 404, "Not found", {}, None)
+        self.assertIsNone(registry.manifest("v4.33.0", optional=True))
+        with self.assertRaises(HTTPError):
+            registry.manifest("v4.33.0")
+        urlopen.side_effect = HTTPError("https://ghcr.io", 403, "Forbidden", {}, None)
+        with self.assertRaises(HTTPError):
+            registry.manifest("v4.33.0", optional=True)
+
+
+if __name__ == "__main__":
+    unittest.main()
